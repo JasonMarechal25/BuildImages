@@ -48,19 +48,20 @@ RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/do
 RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/llvmorg-${CLANG_VERSION}.tar.gz && \
     tar zxf llvmorg-${CLANG_VERSION}.tar.gz && \
     pushd llvm-project-llvmorg-${CLANG_VERSION} && \
-    mkdir build && \
-    pushd build && \
+    mkdir build
+
+RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
     cmake ../llvm \
         -G Ninja \
         -DCMAKE_CXX_COMPILER=clang++-10 \
         -DCMAKE_C_COMPILER=clang-10 \
         -DLLVM_USE_LINKER=lld-10 \
         -DCMAKE_BUILD_TYPE=Release \
-        -DLLVM_ENABLE_PROJECTS=clang \
+        -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt" \
         -DLLVM_ENABLE_RUNTIMES=all \
         -DLLVM_TARGETS_TO_BUILD=X86 \
         -DBUILD_SHARED_LIBS=ON \
-        -DCMAKE_INSTALL_PREFIX=/usr/local/clang \
+        -DCMAKE_INSTALL_PREFIX=/tmp/install \
         -DLLVM_ENABLE_ASSERTIONS=ON \
         -DLLVM_INCLUDE_EXAMPLES=OFF \
         -DLLVM_INCLUDE_TESTS=OFF \
@@ -74,7 +75,6 @@ RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/
         -DLLVM_ENABLE_WARNINGS=OFF \
         -DLLVM_ENABLE_PEDANTIC=OFF \
         -DLLVM_ENABLE_ASSERTIONS=OFF \
-        -DLLVM_ENABLE_PROJECTS="clang;libc;lld;compiler-rt" \
         -DLLVM_BUILD_DOCS=OFF \
         -DLLVM_BUILD_TESTS=OFF \
         -DLLVM_BUILD_32_BITS=OFF \
@@ -93,35 +93,11 @@ RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/
         -DCLANG_ENABLE_BOOTSTRAP=OFF \
         -DCLANG_DEFAULT_RTLIB=libgcc \
         -DCLANG_DEFAULT_UNWINDLIB=libgcc \
-        -DLIBCXX_INCLUDE_TESTS=OFF \
-        -DLIBCXX_ENABLE_SHARED=YES \
-        -DLIBCXX_ENABLE_STATIC=OFF \
-        -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
-        -DLIBCXX_INCLUDE_DOCS=OFF \
-        -DLIBCXX_GENERATE_COVERAGE=OFF \
-        -DLIBCXX_BUILD_32_BITS=OFF \
-        -DLIBCXX_CXX_ABI=libcxxabi \
-        -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-        -DLIBCXX_USE_COMPILER_RT=OFF \
-        -DLIBCXX_DEBUG_BUILD=OFF \
-        -DLIBCXX_CXX_ABI=libcxxabi \
-        -DLIBCXX_CXX_ABI_INCLUDE_PATHS=../libcxxabi/include/ \
-        -DLIBCXXABI_ENABLE_ASSERTIONS=OFF \
-        -DLIBCXXABI_ENABLE_PEDANTIC=OFF \
-        -DLIBCXXABI_BUILD_32_BITS=OFF \
-        -DLIBCXXABI_INCLUDE_TESTS=OFF \
-        -DLIBCXXABI_ENABLE_SHARED=ON \
-        -DLIBCXXABI_ENABLE_STATIC=ON \
-        -DLIBCXXABI_USE_COMPILER_RT=OFF \
-        -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
-        -DLIBCXXABI_ENABLE_STATIC_UNWINDER=OFF \
-        -DLIBCXXABI_STATICALLY_LINK_UNWINDER_IN_SHARED_LIBRARY=OFF \
-        -DLIBCXXABI_LIBUNWIND_INCLUDES_INTERNAL=OFF \
         -DCOMPILER_RT_INCLUDE_TESTS=OFF \
-        -DCOMPILER_RT_USE_LIBCXX=ON \
-        -DENABLE_LINKER_BUILD_ID=ON \
-        && ninja cxxabi \
-        && cp lib/libc++abi* /usr/lib/ \
+        -DENABLE_LINKER_BUILD_ID=ON
+
+RUN     pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
+        ninja cxxabi \
         && ninja cxx \
         && ninja clang \
         && ninja lld \
@@ -177,8 +153,10 @@ RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/
                  llvm-objcopy \
                  llvm-rc \
                  llvm-split \
-                 llvm-undname \
-        && ninja install-cxxabi \
+                 llvm-undname
+
+RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
+    ninja install-cxxabi \
                  install-cxx \
                  install-clang \
                  install-lld \
@@ -233,12 +211,26 @@ RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/
                  install-llvm-objcopy \
                  install-llvm-rc \
                  install-llvm-split \
-                 install-llvm-undname \
-    && cp -a lib/clang/${CLANG_VERSION}/include /usr/local/lib/clang/${CLANG_VERSION}/include \
-    && cp $(find lib -name "*.so*") /usr/local/lib \
-    popd && \
-    popd && \
-    rm -rf llvm-project-llvmorg-${CLANG_VERSION} && rm llvmorg-${CLANG_VERSION}.tar.gz
+                 install-llvm-undname
+
+RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
+    && ls -la lib/clang \
+    && MAJOR_CLANG_VERSION=${CLANG_VERSION%%.*} \
+    && cp -a lib/clang/${MAJOR_CLANG_VERSION}/include /tmp/install/lib/clang/${MAJOR_CLANG_VERSION}/include \
+    && cp $(find lib -name "*.so*") /tmp/install/lib \
+    && popd \
+    && rm -rf llvm-project-llvmorg-${CLANG_VERSION} && rm llvmorg-${CLANG_VERSION}.tar.gz
+
+RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
+    && cp -a /tmp/install/lib/* /usr/local/lib/ \
+    && cp -a /tmp/install/include/* /usr/local/include/ \
+    && rm -rf /tmp/install \
+    && update-alternatives --install /usr/local/bin/cc cc /usr/local/bin/clang 100 \
+    && update-alternatives --install /usr/local/bin/cpp ccp /usr/local/bin/clang++ 100 \
+    && update-alternatives --install /usr/local/bin/c++ c++ /usr/local/bin/clang++ 100 \
+    && update-alternatives --install /usr/local/bin/ld ld /usr/local/bin/ld.lld 100 \
+    && rm /etc/ld.so.cache \
+    && ldconfig -C /etc/ld.so.cache
 
 # Set the working directory
 WORKDIR /root
