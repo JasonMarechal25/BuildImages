@@ -13,6 +13,7 @@ ENV NINJA_VERSION=v1.12.1
 # Update the system and install necessary packages
 RUN apt update
 RUN apt update --fix-missing
+#install clang and lld-10 to speed up the build over default ld
 RUN apt install -y --no-install-recommends --no-install-suggests \
     build-essential \
     wget \
@@ -25,6 +26,7 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     libmpfr-dev libgmp3-dev libmpc-dev \
     libssl-dev \
     unzip \
+    clang-10 lld-10 libc++-10-dev \
     && rm -rf /var/lib/apt/lists/*
 
 #Cmake
@@ -40,22 +42,26 @@ RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/downlo
 
 RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/download/${NINJA_VERSION}/ninja-linux.zip && \
     unzip ninja-linux.zip -d /usr/local/bin/ && \
-    rm ninja-linux.zip \
+    rm ninja-linux.zip
 
 # Build Clang
-RUN git clone --depth=1 --branch llvmorg-${CLANG_VERSION} https://github.com/llvm/llvm-project.git && \
-    pushd llvm-project && \
+RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/llvmorg-${CLANG_VERSION}.tar.gz && \
+    tar zxf llvmorg-${CLANG_VERSION}.tar.gz && \
+    pushd llvm-project-llvmorg-${CLANG_VERSION} && \
     mkdir build && \
     pushd build && \
     cmake ../llvm \
         -G Ninja \
+        -DCMAKE_CXX_COMPILER=clang++-10 \
+        -DCMAKE_C_COMPILER=clang-10 \
+        -DLLVM_USE_LINKER=lld-10 \
         -DCMAKE_BUILD_TYPE=Release \
         -DLLVM_ENABLE_PROJECTS=clang \
         -DLLVM_ENABLE_RUNTIMES=all \
         -DLLVM_TARGETS_TO_BUILD=X86 \
         -DBUILD_SHARED_LIBS=ON \
         -DCMAKE_INSTALL_PREFIX=/usr/local/clang \
-        -DLLVM_ENABLE_ASSERTIONS=ON  && \
+        -DLLVM_ENABLE_ASSERTIONS=ON \
         -DLLVM_INCLUDE_EXAMPLES=OFF \
         -DLLVM_INCLUDE_TESTS=OFF \
         -DLLVM_INCLUDE_GO_TESTS=OFF \
@@ -68,7 +74,7 @@ RUN git clone --depth=1 --branch llvmorg-${CLANG_VERSION} https://github.com/llv
         -DLLVM_ENABLE_WARNINGS=OFF \
         -DLLVM_ENABLE_PEDANTIC=OFF \
         -DLLVM_ENABLE_ASSERTIONS=OFF \
-        -DLLVM_ENABLE_PROJECTS="libunwind;clang;libcxx;libcxxabi;lld;compiler-rt" \
+        -DLLVM_ENABLE_PROJECTS="clang;libc;lld;compiler-rt" \
         -DLLVM_BUILD_DOCS=OFF \
         -DLLVM_BUILD_TESTS=OFF \
         -DLLVM_BUILD_32_BITS=OFF \
@@ -78,13 +84,7 @@ RUN git clone --depth=1 --branch llvmorg-${CLANG_VERSION} https://github.com/llv
         -DLLVM_BUILD_BENCHMARKS=OFF \
         -DLLVM_BUILD_STATIC=OFF \
         -DLLVM_USE_SANITIZER=OFF \
-        -DLLVM_USE_LINKER=lld-10 \
         -DLLVM_OPTIMIZED_TABLEGEN=ON \
-        -DLIBUNWIND_ENABLE_ASSERTIONS=OFF \
-        -DLIBUNWIND_ENABLE_PEDANTIC=OFF \
-        -DLIBUNWIND_ENABLE_SHARED=ON \
-        -DLIBUNWIND_ENABLE_STATIC=OFF \
-        -DLIBUNWIND_USE_COMPILER_RT=OFF \
         -DCLANG_INCLUDE_TESTS=OFF \
         -DCLANG_ENABLE_ARCMT=OFF \
         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
@@ -120,7 +120,6 @@ RUN git clone --depth=1 --branch llvmorg-${CLANG_VERSION} https://github.com/llv
         -DCOMPILER_RT_INCLUDE_TESTS=OFF \
         -DCOMPILER_RT_USE_LIBCXX=ON \
         -DENABLE_LINKER_BUILD_ID=ON \
-    && ninja unwind \
         && ninja cxxabi \
         && cp lib/libc++abi* /usr/lib/ \
         && ninja cxx \
@@ -179,8 +178,7 @@ RUN git clone --depth=1 --branch llvmorg-${CLANG_VERSION} https://github.com/llv
                  llvm-rc \
                  llvm-split \
                  llvm-undname \
-        && ninja install-unwind \
-                 install-cxxabi \
+        && ninja install-cxxabi \
                  install-cxx \
                  install-clang \
                  install-lld \
@@ -240,41 +238,7 @@ RUN git clone --depth=1 --branch llvmorg-${CLANG_VERSION} https://github.com/llv
     && cp $(find lib -name "*.so*") /usr/local/lib \
     popd && \
     popd && \
-    rm -rf llvm-project
-
-# Build gcc
-RUN wget --no-check-certificate http://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.gz && \
-    tar -xvf gcc-${GCC_VERSION}.tar.gz  && \
-    pushd gcc-${GCC_VERSION} && \
-    mkdir build && \
-    pushd build && \
-    ../configure -v \
-      --build=x86_64-linux-gnu \
-      --host=x86_64-linux-gnu \
-      --target=x86_64-linux-gnu \
-      --prefix=/usr/local/gcc-${GCC_VERSION} \
-      --enable-checking=release \
-      --enable-languages=c,c++ \
-      --disable-multilib \
-      --disable-bootstrap \
-      --disable-nls \
-      --disable-werror \
-      --with-system-zlib \
-      --program-suffix=-${GCC_VERSION} && \
-    make -s -j$(nproc) && \
-    make -j$(nproc) install-strip && \
-    popd && \
-    popd && \
-    rm gcc-${GCC_VERSION}.tar.gz && \
-    rm -rf gcc-${GCC_VERSION}
-
-RUN update-alternatives --install /usr/bin/gcov gcov /usr/local/gcc-${GCC_VERSION}/bin/gcov-${GCC_VERSION} 100 && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/local/gcc-${GCC_VERSION}/bin/gcc-${GCC_VERSION} 10 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/local/gcc-${GCC_VERSION}/bin/g++-${GCC_VERSION} 10 && \
-    update-alternatives --install /usr/bin/cc cc /usr/bin/gcc 30 && \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++ 30 && \
-    update-alternatives --set cc /usr/bin/gcc && \
-    update-alternatives --set c++ /usr/bin/g++
+    rm -rf llvm-project-llvmorg-${CLANG_VERSION} && rm llvmorg-${CLANG_VERSION}.tar.gz
 
 # Set the working directory
 WORKDIR /root
