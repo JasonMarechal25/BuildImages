@@ -30,15 +30,8 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     && rm -rf /var/lib/apt/lists/*
 
 #Cmake
-RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz && \
-    tar -xvf cmake-${CMAKE_VERSION}.tar.gz && \
-    pushd cmake-${CMAKE_VERSION} && \
-    ./bootstrap && \
-    make -j$(nproc) && \
-    make install && \
-    popd && \
-    rm -rf cmake-${CMAKE_VERSION} && \
-    rm cmake-${CMAKE_VERSION}.tar.gz
+RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz \
+    && tar xvf cmake-3.31.3-linux-x86_64.tar.gz -C /usr/local --strip-components=1
 
 RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/download/${NINJA_VERSION}/ninja-linux.zip && \
     unzip ninja-linux.zip -d /usr/local/bin/ && \

@@ -40,6 +40,7 @@ RUN wget --no-check-certificate http://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gc
       --prefix=/tmp/install \
       --enable-checking=release \
       --enable-languages=c,c++ \
+      --enable-linker-build-id \
       --disable-multilib \
       --disable-bootstrap \
       --disable-nls \
@@ -62,6 +63,8 @@ RUN rm -rf /usr/lib/gcc/x86_64-linux-gnu/* \
     && update-alternatives --install /usr/local/bin/cc cc /usr/local/bin/gcc 100 \
     && rm /etc/ld.so.cache \
     && ldconfig -C /etc/ld.so.cache
+
+RUN echo "export LD_LIBRARY_PATH=/usr/local/lib64/:$LD_LIBRARY_PATH">> ~/.bashrc
 
 # Set the working directory
 WORKDIR /root
