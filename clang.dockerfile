@@ -7,7 +7,7 @@ SHELL ["/bin/bash", "-c"]
 
 ENV CLANG_VERSION=19.1.7
 ENV GCC_VERSION=14.1.0
-ENV CMAKE_VERSION=3.31.3
+ENV CMAKE_VERSION=3.28.6
 ENV NINJA_VERSION=v1.12.1
 
 # Update the system and install necessary packages
@@ -49,7 +49,7 @@ RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
         -DCMAKE_C_COMPILER=clang-10 \
         -DLLVM_USE_LINKER=lld-10 \
         -DCMAKE_BUILD_TYPE=Release \
-        -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt" \
+        -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt;lldb" \
         -DLLVM_ENABLE_RUNTIMES=all \
         -DLLVM_TARGETS_TO_BUILD=X86 \
         -DBUILD_SHARED_LIBS=ON \
@@ -146,7 +146,8 @@ RUN     pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
                  llvm-rc \
                  llvm-split \
                  llvm-undname \
-                 clang-scan-deps
+                 clang-scan-deps \
+                 lldb lldb-server
 
 RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
     ninja install-cxxabi \
@@ -205,7 +206,8 @@ RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
                  install-llvm-rc \
                  install-llvm-split \
                  install-llvm-undname \
-                 install-clang-scan-deps
+                 install-clang-scan-deps \
+                 install-lldb install-lldb-server
 
 RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
     && ls -la lib/clang \
@@ -228,5 +230,8 @@ RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
 
 RUN update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100
 RUN update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
+RUN chmod 777 /usr/local/bin/ninja
+RUN chmod 777 /usr/bin/ninja
+
 # Set the working directory
 WORKDIR /root
