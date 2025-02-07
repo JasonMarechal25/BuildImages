@@ -5,9 +5,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-c"]
 
-ENV CLANG_VERSION=17.0.1
+ENV CLANG_VERSION=19.1.7
 ENV GCC_VERSION=14.1.0
-ENV CMAKE_VERSION=3.28.2
+ENV CMAKE_VERSION=3.31.3
 ENV NINJA_VERSION=v1.12.1
 
 # Update the system and install necessary packages
@@ -18,7 +18,6 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     build-essential \
     wget \
     git \
-    cmake \
     python3 \
     gdb \
     pkg-config \
@@ -30,8 +29,8 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     && rm -rf /var/lib/apt/lists/*
 
 #Cmake
-RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz \
-    && tar xvf cmake-3.31.3-linux-x86_64.tar.gz -C /usr/local --strip-components=1
+RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz \
+    && tar xvf cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz -C /usr/local --strip-components=1
 
 RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/download/${NINJA_VERSION}/ninja-linux.zip && \
     unzip ninja-linux.zip -d /usr/local/bin/ && \
@@ -146,7 +145,8 @@ RUN     pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
                  llvm-objcopy \
                  llvm-rc \
                  llvm-split \
-                 llvm-undname
+                 llvm-undname \
+                 clang-scan-deps
 
 RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
     ninja install-cxxabi \
@@ -204,7 +204,8 @@ RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
                  install-llvm-objcopy \
                  install-llvm-rc \
                  install-llvm-split \
-                 install-llvm-undname
+                 install-llvm-undname \
+                 install-clang-scan-deps
 
 RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
     && ls -la lib/clang \
@@ -225,5 +226,7 @@ RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
     && rm /etc/ld.so.cache \
     && ldconfig -C /etc/ld.so.cache
 
+RUN update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100
+RUN update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
 # Set the working directory
 WORKDIR /root
