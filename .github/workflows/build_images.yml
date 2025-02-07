@@ -17,6 +17,7 @@ jobs:
             echo "PLOP"
             echo ${{ vars.DOCKER_USERNAME }}
             echo ${{ vars.DOCKER_PASSWORD }}
+            echo ${{ secrets.TEST }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
