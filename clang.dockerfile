@@ -41,7 +41,6 @@ RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/do
 # Build Clang
 RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/llvmorg-${CLANG_VERSION}.tar.gz && \
     tar zxf llvmorg-${CLANG_VERSION}.tar.gz && \
-    rm llvmorg-${CLANG_VERSION}.tar.gz \
     pushd llvm-project-llvmorg-${CLANG_VERSION} && \
     mkdir build
 
