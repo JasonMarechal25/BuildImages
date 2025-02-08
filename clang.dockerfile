@@ -219,19 +219,6 @@ RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
     && popd \
     && rm -rf llvm-project-llvmorg-${CLANG_VERSION} && rm llvmorg-${CLANG_VERSION}.tar.gz
 
-RUN  wget "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz" && \
-    tar -xvf gdb-${GDB_VERSION}.tar.gz && \
-    pushd gdb-${GDB_VERSION} && \
-    mkdir build && \
-    pushd build && \
-    ../configure --prefix=/tmp/install --with-python=python3 && \
-    make -j$(nproc) && \
-    make install-strip && \
-    popd && \
-    popd && \
-    rm gdb-${GDB_VERSION}.tar.gz && \
-    rm -rf gdb-${GDB_VERSION}
-
 RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
     && cp -a /tmp/install/lib/* /usr/local/lib/ \
     && cp -a /tmp/install/include/* /usr/local/include/ \
@@ -245,6 +232,20 @@ RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
     && update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 \
     && update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100 \
     && update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
+
+RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
+    wget "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz" && \
+    tar -xvf gdb-${GDB_VERSION}.tar.gz && \
+    pushd gdb-${GDB_VERSION} && \
+    mkdir build && \
+    pushd build && \
+    ../configure --prefix=/tmp/install --with-python=python3 && \
+    make -j$(nproc) && \
+    make install-strip && \
+    popd && \
+    popd && \
+    rm gdb-${GDB_VERSION}.tar.gz && \
+    rm -rf gdb-${GDB_VERSION}
 
 
 # Set the working directory
