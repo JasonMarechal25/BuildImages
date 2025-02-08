@@ -9,6 +9,7 @@ ENV CLANG_VERSION=19.1.7
 ENV GCC_VERSION=14.1.0
 ENV CMAKE_VERSION=3.28.6
 ENV NINJA_VERSION=v1.12.1
+ENV GDB_VERSION=16.2
 
 # Update the system and install necessary packages
 RUN apt update
@@ -219,6 +220,19 @@ RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
     && popd \
     && rm -rf llvm-project-llvmorg-${CLANG_VERSION} && rm llvmorg-${CLANG_VERSION}.tar.gz
 
+RUN  wget "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz" && \
+    tar -xvf gdb-${GDB_VERSION}.tar.gz && \
+    pushd gdb-${GDB_VERSION} && \
+    mkdir build && \
+    pushd build && \
+    ../configure --prefix=/tmp/install --with-python=python3 && \
+    make -j$(nproc) && \
+    make install-strip && \
+    popd && \
+    popd && \
+    rm gdb-${GDB_VERSION}.tar.gz && \
+    rm -rf gdb-${GDB_VERSION}
+
 RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
     && cp -a /tmp/install/lib/* /usr/local/lib/ \
     && cp -a /tmp/install/include/* /usr/local/include/ \
@@ -228,12 +242,11 @@ RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
     && update-alternatives --install /usr/local/bin/c++ c++ /usr/local/bin/clang++ 100 \
     && update-alternatives --install /usr/local/bin/ld ld /usr/local/bin/ld.lld 100 \
     && rm /etc/ld.so.cache \
-    && ldconfig -C /etc/ld.so.cache
+    && ldconfig -C /etc/ld.so.cache \
+    && update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 \
+    && update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100 \
+    && update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
 
-RUN update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100
-RUN update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
-RUN chmod 777 /usr/local/bin/ninja
-RUN chmod 777 /usr/bin/ninja
 
 # Set the working directory
 WORKDIR /root
