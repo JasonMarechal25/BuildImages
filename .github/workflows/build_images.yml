@@ -28,5 +28,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: jasonmarechal25/ubuntu-build-env/clang:latest
+          tags: jasonmarechal25/ubuntu20-04-clang:latest
           file: clang.dockerfile
