@@ -30,7 +30,8 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
 
 #Cmake
 RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz \
-    && tar xvf cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz -C /usr/local --strip-components=1
+    && tar xvf cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz -C /usr/local --strip-components=1\
+    && rm cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz
 
 RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/download/${NINJA_VERSION}/ninja-linux.zip && \
     unzip ninja-linux.zip -d /usr/local/bin/ && \
@@ -39,6 +40,7 @@ RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/do
 # Build Clang
 RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/llvmorg-${CLANG_VERSION}.tar.gz && \
     tar zxf llvmorg-${CLANG_VERSION}.tar.gz && \
+    rm llvmorg-${CLANG_VERSION}.tar.gz \
     pushd llvm-project-llvmorg-${CLANG_VERSION} && \
     mkdir build
 
