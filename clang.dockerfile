@@ -230,8 +230,7 @@ RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
     && rm /etc/ld.so.cache \
     && ldconfig -C /etc/ld.so.cache \
     && update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 \
-    && update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100 \
-    && update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
+    && update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
 
 RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
     wget "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz" && \
@@ -239,13 +238,14 @@ RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
     pushd gdb-${GDB_VERSION} && \
     mkdir build && \
     pushd build && \
-    ../configure --prefix=/tmp/install --with-python=python3 && \
+    ../configure --prefix=/usr/local && \
     make -j$(nproc) && \
     make install-strip && \
     popd && \
     popd && \
     rm gdb-${GDB_VERSION}.tar.gz && \
-    rm -rf gdb-${GDB_VERSION}
+    rm -rf gdb-${GDB_VERSION} && \
+    update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
 
 
 # Set the working directory
