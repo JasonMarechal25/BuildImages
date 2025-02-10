@@ -41,6 +41,7 @@ RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/do
 # Build Clang
 RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/llvmorg-${CLANG_VERSION}.tar.gz && \
     tar zxf llvmorg-${CLANG_VERSION}.tar.gz && \
+    rm llvmorg-${CLANG_VERSION}.tar.gz && \
     pushd llvm-project-llvmorg-${CLANG_VERSION} && \
     mkdir build
 
@@ -217,7 +218,7 @@ RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
     && cp -a lib/clang/${MAJOR_CLANG_VERSION}/include /tmp/install/lib/clang/${MAJOR_CLANG_VERSION}/include \
     && cp $(find lib -name "*.so*") /tmp/install/lib \
     && popd \
-    && rm -rf llvm-project-llvmorg-${CLANG_VERSION} && rm llvmorg-${CLANG_VERSION}.tar.gz
+    && rm -rf llvm-project-llvmorg-${CLANG_VERSION}
 
 RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
     && cp -a /tmp/install/lib/* /usr/local/lib/ \
@@ -246,6 +247,8 @@ RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
     rm gdb-${GDB_VERSION}.tar.gz && \
     rm -rf gdb-${GDB_VERSION} && \
     update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
+
+RUN chmod 777 /usr/bin/gdb /usr/local/bin/gdb
 
 
 # Set the working directory
