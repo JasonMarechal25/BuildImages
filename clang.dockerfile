@@ -20,7 +20,6 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     wget \
     git \
     python3 \
-    gdb \
     pkg-config \
     zip \
     libmpfr-dev libgmp3-dev libmpc-dev \
