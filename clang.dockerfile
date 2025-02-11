@@ -6,9 +6,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 SHELL ["/bin/bash", "-c"]
 
 ENV CLANG_VERSION=19.1.7
-ENV GCC_VERSION=14.1.0
+#Max supported version of CMake by CLion
 ENV CMAKE_VERSION=3.28.6
 ENV NINJA_VERSION=v1.12.1
+#Max supported version of gdb by CLion
 ENV GDB_VERSION=14.1
 
 # Update the system and install necessary packages
