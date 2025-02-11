@@ -23,6 +23,7 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     python3 \
     pkg-config \
     zip \
+    curl \
     libmpfr-dev libgmp3-dev libmpc-dev \
     libssl-dev \
     unzip \
