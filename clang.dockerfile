@@ -9,7 +9,7 @@ ENV CLANG_VERSION=19.1.7
 ENV GCC_VERSION=14.1.0
 ENV CMAKE_VERSION=3.28.6
 ENV NINJA_VERSION=v1.12.1
-ENV GDB_VERSION=16.2
+ENV GDB_VERSION=14.1
 
 # Update the system and install necessary packages
 RUN apt update
