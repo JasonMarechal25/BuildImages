@@ -240,7 +240,7 @@ RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
     mkdir build && \
     pushd build && \
     ../configure --prefix=/usr/local && \
-    make -j$(nproc) && \
+    make MAKEINFO=true -j$(nproc) && \
     make install-strip && \
     popd && \
     popd && \
