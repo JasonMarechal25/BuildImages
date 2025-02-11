@@ -26,7 +26,7 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     libmpfr-dev libgmp3-dev libmpc-dev \
     libssl-dev \
     unzip \
-    makeinfo \
+    texinfo \
     clang-10 lld-10 libc++-10-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -248,7 +248,7 @@ RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
     rm gdb-${GDB_VERSION}.tar.gz && \
     rm -rf gdb-${GDB_VERSION} && \
     update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100 \
-    && apt remove makeinfo -y
+    && apt remove texinfo -y
 
 RUN chmod 777 /usr/bin/gdb /usr/local/bin/gdb
 
