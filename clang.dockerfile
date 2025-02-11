@@ -248,7 +248,7 @@ RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
     rm gdb-${GDB_VERSION}.tar.gz && \
     rm -rf gdb-${GDB_VERSION} && \
     update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100 \
-    apt remove makeinfo -y
+    && apt remove makeinfo -y
 
 RUN chmod 777 /usr/bin/gdb /usr/local/bin/gdb
 
