@@ -30,6 +30,6 @@ jobs:
           push: true
           tags: jasonmarechal25/ubuntu20-04-clang:latest
           file: clang.dockerfile
-          cache-from: type=registry,ref=jasonmarechal25/ubuntu20-04-clang:latest
-          cache-to: type=inline
+          cache-from: type=registry,ref=jasonmarechal25/ubuntu20-04-clang:buildcache
+          cache-to: type=registry,ref=jasonmarechal25/ubuntu20-04-clang:buildcache,mode=max
 
