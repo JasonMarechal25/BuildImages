@@ -16,6 +16,8 @@ ENV GDB_VERSION=14.1
 RUN apt update
 RUN apt update --fix-missing
 #install clang and lld-10 to speed up the build over default ld
+#curl and ca-certificates to be able to use vcpkg
+#texinfo required for GDB 14 (not anymore for 16.x I think)
 RUN apt install -y --no-install-recommends --no-install-suggests \
     build-essential \
     wget \
@@ -27,6 +29,7 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     libmpfr-dev libgmp3-dev libmpc-dev \
     libssl-dev \
     unzip \
+    ca-certificates \
     texinfo \
     clang-10 lld-10 libc++-10-dev \
     && rm -rf /var/lib/apt/lists/*
