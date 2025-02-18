@@ -103,66 +103,6 @@ RUN     pushd llvm-project-llvmorg-${CLANG_VERSION} \
 RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
     ninja install
 
-RUN ls /tmp/install/bin/
-RUN ls /tmp/install/lib/
-RUN /tmp/install/bin/ld.lld --version
-RUN find /tmp/install -name libc++.so.1
-
-RUN  pushd llvm-project-llvmorg-${CLANG_VERSION} \
-        && rm -rf build/* \
-    && LD_LIBRARY_PATH=/tmp/install/lib/x86_64-unknown-linux-gnu cmake -G Ninja \
-        -S llvm \
-        -B build \
-        -DCMAKE_CXX_COMPILER=/tmp/install/bin/clang++ \
-        -DCMAKE_C_COMPILER=/tmp/install/bin/clang \
-        -DLLVM_USE_LINKER=/tmp/install/bin/ld.lld \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DLLVM_ENABLE_PROJECTS="clang;lld;lldb" \
-        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind;compiler-rt" \
-        -DLLVM_TARGETS_TO_BUILD=host \
-        -DBUILD_SHARED_LIBS=ON \
-        -DCMAKE_INSTALL_PREFIX=/tmp/install \
-        -DLLVM_INCLUDE_EXAMPLES=OFF \
-        -DLLVM_INCLUDE_TESTS=OFF \
-        -DLLVM_INCLUDE_DOCS=OFF \
-        -DLLVM_INCLUDE_TOOLS=ON \
-        -DLLVM_INCLUDE_UTILS=OFF \
-        -DLLVM_INCLUDE_BENCHMARKS=OFF \
-        -DLLVM_ENABLE_OCAMLDOC=OFF \
-        -DLLVM_ENABLE_BACKTRACES=OFF \
-        -DLLVM_ENABLE_WARNINGS=OFF \
-        -DLLVM_ENABLE_PEDANTIC=OFF \
-        -DLLVM_ENABLE_ASSERTIONS=OFF \
-        -DLLVM_BUILD_DOCS=OFF \
-        -DLLVM_BUILD_TESTS=OFF \
-        -DLLVM_BUILD_32_BITS=OFF \
-        -DLLVM_BUILD_TOOLS=ON \
-        -DLLVM_BUILD_UTILS=OFF \
-        -DLLVM_BUILD_EXAMPLES=OFF \
-        -DLLVM_BUILD_BENCHMARKS=OFF \
-        -DLLVM_BUILD_STATIC=OFF \
-        -DLLVM_USE_SANITIZER=OFF \
-        -DLLVM_OPTIMIZED_TABLEGEN=ON \
-        -DCLANG_INCLUDE_TESTS=OFF \
-        -DCLANG_ENABLE_ARCMT=OFF \
-        -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-        -DCLANG_INCLUDE_DOCS=OFF \
-        -DCLANG_BUILD_EXAMPLES=OFF \
-        -DCLANG_ENABLE_BOOTSTRAP=OFF \
-        -DCLANG_DEFAULT_RTLIB=compiler-rt \
-        -DCLANG_DEFAULT_UNWINDLIB="libunwind" \
-        -DCOMPILER_RT_INCLUDE_TESTS=OFF \
-        -DENABLE_LINKER_BUILD_ID=ON \
-        -DCLANG_DEFAULT_CXX_STDLIB=libc++
-
-RUN find /tmp/install -name libc++.so.1
-
-RUN     pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
-        && LD_LIBRARY_PATH=/tmp/install/lib/x86_64-unknown-linux-gnu  ninja all
-
-RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
-    LD_LIBRARY_PATH=/tmp/install/lib/x86_64-unknown-linux-gnu  ninja install
-
 RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
     && ls -la lib/clang \
     && MAJOR_CLANG_VERSION=${CLANG_VERSION%%.*} \
