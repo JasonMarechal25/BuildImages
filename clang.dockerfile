@@ -34,7 +34,7 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     unzip \
     ca-certificates \
     texinfo \
-    clang-10 lld-10 libc++-10-dev \
+    lld \
     && rm -rf /var/lib/apt/lists/*
 
 #Cmake
@@ -53,16 +53,15 @@ RUN wget -q --no-check-certificate https://github.com/llvm/llvm-project/archive/
     pushd llvm-project-llvmorg-${CLANG_VERSION} && \
     mkdir build
 
-RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
-    cmake ../llvm \
-        -G Ninja \
-        -DCMAKE_CXX_COMPILER=clang++-10 \
-        -DCMAKE_C_COMPILER=clang-10 \
-        -DLLVM_USE_LINKER=lld-10 \
+RUN  pushd llvm-project-llvmorg-${CLANG_VERSION} \
+        && cmake -G Ninja \
+        -S llvm \
+        -B build \
         -DCMAKE_BUILD_TYPE=Release \
-        -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt;lldb" \
-        -DLLVM_ENABLE_RUNTIMES=all \
-        -DLLVM_TARGETS_TO_BUILD=X86 \
+        -DLLVM_ENABLE_PROJECTS="clang;lld;lldb" \
+        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind;compiler-rt" \
+        -DLLVM_TARGETS_TO_BUILD=host \
+        -DLLVM_ENABLE_LLD=ON \
         -DBUILD_SHARED_LIBS=ON \
         -DCMAKE_INSTALL_PREFIX=/tmp/install \
         -DLLVM_INCLUDE_EXAMPLES=OFF \
@@ -92,139 +91,85 @@ RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
         -DCLANG_INCLUDE_DOCS=OFF \
         -DCLANG_BUILD_EXAMPLES=OFF \
         -DCLANG_ENABLE_BOOTSTRAP=OFF \
-        -DCLANG_DEFAULT_RTLIB=libgcc \
-        -DCLANG_DEFAULT_UNWINDLIB=libgcc \
+        -DCLANG_DEFAULT_RTLIB=compiler-rt \
+        -DCLANG_DEFAULT_UNWINDLIB="libunwind" \
         -DCOMPILER_RT_INCLUDE_TESTS=OFF \
-        -DENABLE_LINKER_BUILD_ID=ON
+        -DENABLE_LINKER_BUILD_ID=ON \
+        -DCLANG_DEFAULT_CXX_STDLIB=libc++
 
-RUN     pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
-        ninja cxxabi \
-        && ninja cxx \
-        && ninja clang \
-        && ninja lld \
-        && ninja compiler-rt \
-        && ninja llvm-cat \
-                 llvm-cxxfilt \
-                 llvm-dwp \
-                 llvm-jitlink \
-                 llvm-mc \
-                 llvm-objdump \
-                 llvm-readelf \
-                 llvm-stress \
-                 llvm-xray \
-                 llvm-addr2line \
-                 llvm-cfi-verify \
-                 llvm-c-test \
-                 llvm-cxxmap \
-                 llvm-lib \
-                 llvm-mca \
-                 llvm-opt-report \
-                 llvm-readobj \
-                 llvm-strings \
-                 llvm-ar \
-                 llvm-config \
-                 llvm-diff \
-                 llvm-exegesis \
-                 llvm-link \
-                 llvm-modextract \
-                 llvm-pdbutil \
-                 llvm-reduce \
-                 llvm-strip \
-                 llvm-as \
-                 llvm-cov \
-                 llvm-dis \
-                 llvm-extract \
-                 llvm-lipo \
-                 llvm-mt \
-                 llvm-profdata \
-                 llvm-rtdyld \
-                 llvm-symbolizer \
-                 llvm-bcanalyzer \
-                 llvm-cvtres \
-                 llvm-dlltool \
-                 llvm-ifs \
-                 llvm-lto \
-                 llvm-nm \
-                 llvm-ranlib \
-                 llvm-size \
-                 llvm-cxxdump \
-                 llvm-dwarfdump \
-                 llvm-install-name-tool \
-                 llvm-lto2 \
-                 llvm-objcopy \
-                 llvm-rc \
-                 llvm-split \
-                 llvm-undname \
-                 clang-scan-deps \
-                 lldb lldb-server
+RUN     pushd llvm-project-llvmorg-${CLANG_VERSION} \
+        && ninja -C build all
 
 RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
-    ninja install-cxxabi \
-                 install-cxx \
-                 install-clang \
-                 install-lld \
-                 install-compiler-rt \
-                 install-llvm-cat \
-                 install-llvm-cxxfilt \
-                 install-llvm-dwp \
-                 install-llvm-jitlink \
-                 install-llvm-mc \
-                 install-llvm-objdump \
-                 install-llvm-readelf \
-                 install-llvm-stress \
-                 install-llvm-xray \
-                 install-llvm-addr2line \
-                 install-llvm-cfi-verify \
-                 install-llvm-cxxmap \
-                 install-llvm-lib \
-                 install-llvm-mca \
-                 install-llvm-opt-report \
-                 install-llvm-readobj \
-                 install-llvm-strings \
-                 install-llvm-ar \
-                 install-llvm-config \
-                 install-llvm-diff \
-                 install-llvm-exegesis \
-                 install-llvm-link \
-                 install-llvm-modextract \
-                 install-llvm-pdbutil \
-                 install-llvm-reduce \
-                 install-llvm-strip \
-                 install-llvm-as \
-                 install-llvm-cov \
-                 install-llvm-dis \
-                 install-llvm-extract \
-                 install-llvm-lipo \
-                 install-llvm-mt \
-                 install-llvm-profdata \
-                 install-llvm-rtdyld \
-                 install-llvm-symbolizer \
-                 install-llvm-bcanalyzer \
-                 install-llvm-cvtres \
-                 install-llvm-dlltool \
-                 install-llvm-ifs \
-                 install-llvm-lto \
-                 install-llvm-nm \
-                 install-llvm-ranlib \
-                 install-llvm-size \
-                 install-llvm-cxxdump \
-                 install-llvm-dwarfdump \
-                 install-llvm-install-name-tool \
-                 install-llvm-lto2 \
-                 install-llvm-objcopy \
-                 install-llvm-rc \
-                 install-llvm-split \
-                 install-llvm-undname \
-                 install-clang-scan-deps \
-                 install-lldb install-lldb-server
+    ninja install
+
+RUN ls /tmp/install/bin/
+RUN ls /tmp/install/lib/
+RUN /tmp/install/bin/ld.lld --version
+RUN find /tmp/install -name libc++.so.1
+
+RUN  pushd llvm-project-llvmorg-${CLANG_VERSION} \
+        && rm -rf build/* \
+    && LD_LIBRARY_PATH=/tmp/install/lib/x86_64-unknown-linux-gnu cmake -G Ninja \
+        -S llvm \
+        -B build \
+        -DCMAKE_CXX_COMPILER=/tmp/install/bin/clang++ \
+        -DCMAKE_C_COMPILER=/tmp/install/bin/clang \
+        -DLLVM_USE_LINKER=/tmp/install/bin/ld.lld \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DLLVM_ENABLE_PROJECTS="clang;lld;lldb" \
+        -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind;compiler-rt" \
+        -DLLVM_TARGETS_TO_BUILD=host \
+        -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_INSTALL_PREFIX=/tmp/install \
+        -DLLVM_INCLUDE_EXAMPLES=OFF \
+        -DLLVM_INCLUDE_TESTS=OFF \
+        -DLLVM_INCLUDE_DOCS=OFF \
+        -DLLVM_INCLUDE_TOOLS=ON \
+        -DLLVM_INCLUDE_UTILS=OFF \
+        -DLLVM_INCLUDE_BENCHMARKS=OFF \
+        -DLLVM_ENABLE_OCAMLDOC=OFF \
+        -DLLVM_ENABLE_BACKTRACES=OFF \
+        -DLLVM_ENABLE_WARNINGS=OFF \
+        -DLLVM_ENABLE_PEDANTIC=OFF \
+        -DLLVM_ENABLE_ASSERTIONS=OFF \
+        -DLLVM_BUILD_DOCS=OFF \
+        -DLLVM_BUILD_TESTS=OFF \
+        -DLLVM_BUILD_32_BITS=OFF \
+        -DLLVM_BUILD_TOOLS=ON \
+        -DLLVM_BUILD_UTILS=OFF \
+        -DLLVM_BUILD_EXAMPLES=OFF \
+        -DLLVM_BUILD_BENCHMARKS=OFF \
+        -DLLVM_BUILD_STATIC=OFF \
+        -DLLVM_USE_SANITIZER=OFF \
+        -DLLVM_OPTIMIZED_TABLEGEN=ON \
+        -DCLANG_INCLUDE_TESTS=OFF \
+        -DCLANG_ENABLE_ARCMT=OFF \
+        -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
+        -DCLANG_INCLUDE_DOCS=OFF \
+        -DCLANG_BUILD_EXAMPLES=OFF \
+        -DCLANG_ENABLE_BOOTSTRAP=OFF \
+        -DCLANG_DEFAULT_RTLIB=compiler-rt \
+        -DCLANG_DEFAULT_UNWINDLIB="libunwind" \
+        -DCOMPILER_RT_INCLUDE_TESTS=OFF \
+        -DENABLE_LINKER_BUILD_ID=ON \
+        -DCLANG_DEFAULT_CXX_STDLIB=libc++
+
+RUN find /tmp/install -name libc++.so.1
+
+RUN     pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
+        && LD_LIBRARY_PATH=/tmp/install/lib/x86_64-unknown-linux-gnu  ninja all
+
+RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build && \
+    LD_LIBRARY_PATH=/tmp/install/lib/x86_64-unknown-linux-gnu  ninja install
 
 RUN pushd llvm-project-llvmorg-${CLANG_VERSION}/build \
     && ls -la lib/clang \
     && MAJOR_CLANG_VERSION=${CLANG_VERSION%%.*} \
     && cp -a lib/clang/${MAJOR_CLANG_VERSION}/include /tmp/install/lib/clang/${MAJOR_CLANG_VERSION}/include \
     && cp $(find lib -name "*.so*") /tmp/install/lib \
-    && popd \
-    && rm -rf llvm-project-llvmorg-${CLANG_VERSION}
+    && popd
+#    && rm -rf llvm-project-llvmorg-${CLANG_VERSION}
 
 RUN cp -a /tmp/install/bin/* /usr/local/bin/ \
     && cp -a /tmp/install/lib/* /usr/local/lib/ \
@@ -269,5 +214,4 @@ RUN USER=docker && \
 # Set the working directory
 WORKDIR /root
 
-USER docker:docker
-ENTRYPOINT ["fixuid"]
+USER root
