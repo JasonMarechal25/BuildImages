@@ -5,276 +5,103 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-c"]
 
-ENV CLANG_VERSION=17.0.1
-ENV GCC_VERSION=14.1.0
-ENV CMAKE_VERSION=3.28.2
+ENV CLANG_VERSION=19
+#Max supported version of CMake by CLion
+ENV CMAKE_VERSION=3.28.6
 ENV NINJA_VERSION=v1.12.1
+#Max supported version of gdb by CLion
+ENV GDB_VERSION=14.1
+
+RUN addgroup --gid 1000 docker && \
+    adduser --uid 1000 --ingroup docker --home /home/docker --shell /bin/sh --disabled-password --gecos "" docker
 
 # Update the system and install necessary packages
 RUN apt update
 RUN apt update --fix-missing
+#install clang and lld-10 to speed up the build over default ld
+#curl and ca-certificates to be able to use vcpkg
+#texinfo required for GDB 14 (not anymore for 16.x I think)
 RUN apt install -y --no-install-recommends --no-install-suggests \
     build-essential \
     wget \
     git \
-    cmake \
     python3 \
-    gdb \
     pkg-config \
     zip \
+    curl \
     libmpfr-dev libgmp3-dev libmpc-dev \
     libssl-dev \
     unzip \
+    ca-certificates \
+    texinfo \
+    lsb-release wget software-properties-common gnupg \
     && rm -rf /var/lib/apt/lists/*
 
 #Cmake
-RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}.tar.gz && \
-    tar -xvf cmake-${CMAKE_VERSION}.tar.gz && \
-    pushd cmake-${CMAKE_VERSION} && \
-    ./bootstrap && \
-    make -j$(nproc) && \
-    make install && \
-    popd && \
-    rm -rf cmake-${CMAKE_VERSION} && \
-    rm cmake-${CMAKE_VERSION}.tar.gz
+RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz \
+    && tar xvf cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz -C /usr/local --strip-components=1\
+    && rm cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz
 
+#Ninja
 RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/download/${NINJA_VERSION}/ninja-linux.zip && \
     unzip ninja-linux.zip -d /usr/local/bin/ && \
-    rm ninja-linux.zip \
+    rm ninja-linux.zip
 
-# Build Clang
-RUN git clone --depth=1 --branch llvmorg-${CLANG_VERSION} https://github.com/llvm/llvm-project.git && \
-    pushd llvm-project && \
+# Clang
+RUN wget https://apt.llvm.org/llvm.sh \
+    && chmod +x llvm.sh \
+    && ./llvm.sh ${CLANG_VERSION} \
+    && apt-get install clang-tools-19 clang-format-19 clangd-19 clang-tidy-19 -y
+
+#gdb
+RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-19 100 \
+    && update-alternatives --install /usr/local/bin/clang clang /usr/bin/clang-19 100 \
+    && update-alternatives --install /usr/local/bin/cpp ccp /usr/bin/clang++-19 100 \
+    && update-alternatives --install /usr/local/bin/c++ c++ /usr/bin/clang++-19 100 \
+    && update-alternatives --install /usr/local/bin/clang++ clang++ /usr/bin/clang++-19 100 \
+    && update-alternatives --install /usr/local/bin/ld ld /usr/bin/ld.lld-19 100 \
+    && update-alternatives --install /usr/local/bin/clang-format clang-format /usr/bin/clang-format-19 100 \
+    && update-alternatives --install /usr/local/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100 \
+    && rm /etc/ld.so.cache \
+    && ldconfig -C /etc/ld.so.cache \
+    && update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 \
+    && update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
+
+RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
+    wget "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz" && \
+    tar -xvf gdb-${GDB_VERSION}.tar.gz && \
+    pushd gdb-${GDB_VERSION} && \
     mkdir build && \
     pushd build && \
-    cmake ../llvm \
-        -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DLLVM_ENABLE_PROJECTS=clang \
-        -DLLVM_ENABLE_RUNTIMES=all \
-        -DLLVM_TARGETS_TO_BUILD=X86 \
-        -DBUILD_SHARED_LIBS=ON \
-        -DCMAKE_INSTALL_PREFIX=/usr/local/clang \
-        -DLLVM_ENABLE_ASSERTIONS=ON  && \
-        -DLLVM_INCLUDE_EXAMPLES=OFF \
-        -DLLVM_INCLUDE_TESTS=OFF \
-        -DLLVM_INCLUDE_GO_TESTS=OFF \
-        -DLLVM_INCLUDE_DOCS=OFF \
-        -DLLVM_INCLUDE_TOOLS=ON \
-        -DLLVM_INCLUDE_UTILS=OFF \
-        -DLLVM_INCLUDE_BENCHMARKS=OFF \
-        -DLLVM_ENABLE_OCAMLDOC=OFF \
-        -DLLVM_ENABLE_BACKTRACES=OFF \
-        -DLLVM_ENABLE_WARNINGS=OFF \
-        -DLLVM_ENABLE_PEDANTIC=OFF \
-        -DLLVM_ENABLE_ASSERTIONS=OFF \
-        -DLLVM_ENABLE_PROJECTS="libunwind;clang;libcxx;libcxxabi;lld;compiler-rt" \
-        -DLLVM_BUILD_DOCS=OFF \
-        -DLLVM_BUILD_TESTS=OFF \
-        -DLLVM_BUILD_32_BITS=OFF \
-        -DLLVM_BUILD_TOOLS=ON \
-        -DLLVM_BUILD_UTILS=OFF \
-        -DLLVM_BUILD_EXAMPLES=OFF \
-        -DLLVM_BUILD_BENCHMARKS=OFF \
-        -DLLVM_BUILD_STATIC=OFF \
-        -DLLVM_USE_SANITIZER=OFF \
-        -DLLVM_USE_LINKER=lld-10 \
-        -DLLVM_OPTIMIZED_TABLEGEN=ON \
-        -DLIBUNWIND_ENABLE_ASSERTIONS=OFF \
-        -DLIBUNWIND_ENABLE_PEDANTIC=OFF \
-        -DLIBUNWIND_ENABLE_SHARED=ON \
-        -DLIBUNWIND_ENABLE_STATIC=OFF \
-        -DLIBUNWIND_USE_COMPILER_RT=OFF \
-        -DCLANG_INCLUDE_TESTS=OFF \
-        -DCLANG_ENABLE_ARCMT=OFF \
-        -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-        -DCLANG_INCLUDE_DOCS=OFF \
-        -DCLANG_BUILD_EXAMPLES=OFF \
-        -DCLANG_ENABLE_BOOTSTRAP=OFF \
-        -DCLANG_DEFAULT_RTLIB=libgcc \
-        -DCLANG_DEFAULT_UNWINDLIB=libgcc \
-        -DLIBCXX_INCLUDE_TESTS=OFF \
-        -DLIBCXX_ENABLE_SHARED=YES \
-        -DLIBCXX_ENABLE_STATIC=OFF \
-        -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
-        -DLIBCXX_INCLUDE_DOCS=OFF \
-        -DLIBCXX_GENERATE_COVERAGE=OFF \
-        -DLIBCXX_BUILD_32_BITS=OFF \
-        -DLIBCXX_CXX_ABI=libcxxabi \
-        -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-        -DLIBCXX_USE_COMPILER_RT=OFF \
-        -DLIBCXX_DEBUG_BUILD=OFF \
-        -DLIBCXX_CXX_ABI=libcxxabi \
-        -DLIBCXX_CXX_ABI_INCLUDE_PATHS=../libcxxabi/include/ \
-        -DLIBCXXABI_ENABLE_ASSERTIONS=OFF \
-        -DLIBCXXABI_ENABLE_PEDANTIC=OFF \
-        -DLIBCXXABI_BUILD_32_BITS=OFF \
-        -DLIBCXXABI_INCLUDE_TESTS=OFF \
-        -DLIBCXXABI_ENABLE_SHARED=ON \
-        -DLIBCXXABI_ENABLE_STATIC=ON \
-        -DLIBCXXABI_USE_COMPILER_RT=OFF \
-        -DLIBCXXABI_USE_LLVM_UNWINDER=OFF \
-        -DLIBCXXABI_ENABLE_STATIC_UNWINDER=OFF \
-        -DLIBCXXABI_STATICALLY_LINK_UNWINDER_IN_SHARED_LIBRARY=OFF \
-        -DLIBCXXABI_LIBUNWIND_INCLUDES_INTERNAL=OFF \
-        -DCOMPILER_RT_INCLUDE_TESTS=OFF \
-        -DCOMPILER_RT_USE_LIBCXX=ON \
-        -DENABLE_LINKER_BUILD_ID=ON \
-    && ninja unwind \
-        && ninja cxxabi \
-        && cp lib/libc++abi* /usr/lib/ \
-        && ninja cxx \
-        && ninja clang \
-        && ninja lld \
-        && ninja compiler-rt \
-        && ninja llvm-cat \
-                 llvm-cxxfilt \
-                 llvm-dwp \
-                 llvm-jitlink \
-                 llvm-mc \
-                 llvm-objdump \
-                 llvm-readelf \
-                 llvm-stress \
-                 llvm-xray \
-                 llvm-addr2line \
-                 llvm-cfi-verify \
-                 llvm-c-test \
-                 llvm-cxxmap \
-                 llvm-lib \
-                 llvm-mca \
-                 llvm-opt-report \
-                 llvm-readobj \
-                 llvm-strings \
-                 llvm-ar \
-                 llvm-config \
-                 llvm-diff \
-                 llvm-exegesis \
-                 llvm-link \
-                 llvm-modextract \
-                 llvm-pdbutil \
-                 llvm-reduce \
-                 llvm-strip \
-                 llvm-as \
-                 llvm-cov \
-                 llvm-dis \
-                 llvm-extract \
-                 llvm-lipo \
-                 llvm-mt \
-                 llvm-profdata \
-                 llvm-rtdyld \
-                 llvm-symbolizer \
-                 llvm-bcanalyzer \
-                 llvm-cvtres \
-                 llvm-dlltool \
-                 llvm-ifs \
-                 llvm-lto \
-                 llvm-nm \
-                 llvm-ranlib \
-                 llvm-size \
-                 llvm-cxxdump \
-                 llvm-dwarfdump \
-                 llvm-install-name-tool \
-                 llvm-lto2 \
-                 llvm-objcopy \
-                 llvm-rc \
-                 llvm-split \
-                 llvm-undname \
-        && ninja install-unwind \
-                 install-cxxabi \
-                 install-cxx \
-                 install-clang \
-                 install-lld \
-                 install-compiler-rt \
-                 install-llvm-cat \
-                 install-llvm-cxxfilt \
-                 install-llvm-dwp \
-                 install-llvm-jitlink \
-                 install-llvm-mc \
-                 install-llvm-objdump \
-                 install-llvm-readelf \
-                 install-llvm-stress \
-                 install-llvm-xray \
-                 install-llvm-addr2line \
-                 install-llvm-cfi-verify \
-                 install-llvm-cxxmap \
-                 install-llvm-lib \
-                 install-llvm-mca \
-                 install-llvm-opt-report \
-                 install-llvm-readobj \
-                 install-llvm-strings \
-                 install-llvm-ar \
-                 install-llvm-config \
-                 install-llvm-diff \
-                 install-llvm-exegesis \
-                 install-llvm-link \
-                 install-llvm-modextract \
-                 install-llvm-pdbutil \
-                 install-llvm-reduce \
-                 install-llvm-strip \
-                 install-llvm-as \
-                 install-llvm-cov \
-                 install-llvm-dis \
-                 install-llvm-extract \
-                 install-llvm-lipo \
-                 install-llvm-mt \
-                 install-llvm-profdata \
-                 install-llvm-rtdyld \
-                 install-llvm-symbolizer \
-                 install-llvm-bcanalyzer \
-                 install-llvm-cvtres \
-                 install-llvm-dlltool \
-                 install-llvm-ifs \
-                 install-llvm-lto \
-                 install-llvm-nm \
-                 install-llvm-ranlib \
-                 install-llvm-size \
-                 install-llvm-cxxdump \
-                 install-llvm-dwarfdump \
-                 install-llvm-install-name-tool \
-                 install-llvm-lto2 \
-                 install-llvm-objcopy \
-                 install-llvm-rc \
-                 install-llvm-split \
-                 install-llvm-undname \
-    && cp -a lib/clang/${CLANG_VERSION}/include /usr/local/lib/clang/${CLANG_VERSION}/include \
-    && cp $(find lib -name "*.so*") /usr/local/lib \
+    ../configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install-strip && \
     popd && \
     popd && \
-    rm -rf llvm-project
+    rm gdb-${GDB_VERSION}.tar.gz && \
+    rm -rf gdb-${GDB_VERSION} && \
+    update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100 \
+    && apt remove texinfo -y
 
-# Build gcc
-RUN wget --no-check-certificate http://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.gz && \
-    tar -xvf gcc-${GCC_VERSION}.tar.gz  && \
-    pushd gcc-${GCC_VERSION} && \
-    mkdir build && \
-    pushd build && \
-    ../configure -v \
-      --build=x86_64-linux-gnu \
-      --host=x86_64-linux-gnu \
-      --target=x86_64-linux-gnu \
-      --prefix=/usr/local/gcc-${GCC_VERSION} \
-      --enable-checking=release \
-      --enable-languages=c,c++ \
-      --disable-multilib \
-      --disable-bootstrap \
-      --disable-nls \
-      --disable-werror \
-      --with-system-zlib \
-      --program-suffix=-${GCC_VERSION} && \
-    make -s -j$(nproc) && \
-    make -j$(nproc) install-strip && \
-    popd && \
-    popd && \
-    rm gcc-${GCC_VERSION}.tar.gz && \
-    rm -rf gcc-${GCC_VERSION}
-
-RUN update-alternatives --install /usr/bin/gcov gcov /usr/local/gcc-${GCC_VERSION}/bin/gcov-${GCC_VERSION} 100 && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/local/gcc-${GCC_VERSION}/bin/gcc-${GCC_VERSION} 10 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/local/gcc-${GCC_VERSION}/bin/g++-${GCC_VERSION} 10 && \
-    update-alternatives --install /usr/bin/cc cc /usr/bin/gcc 30 && \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++ 30 && \
-    update-alternatives --set cc /usr/bin/gcc && \
-    update-alternatives --set c++ /usr/bin/g++
+#https://github.com/boxboat/fixuid
+RUN USER=docker && \
+    GROUP=docker && \
+    curl -SsL https://github.com/boxboat/fixuid/releases/download/v0.6.0/fixuid-0.6.0-linux-amd64.tar.gz | tar -C /usr/local/bin -xzf - && \
+    chown root:root /usr/local/bin/fixuid && \
+    chmod 4755 /usr/local/bin/fixuid && \
+    mkdir -p /etc/fixuid && \
+    printf "user: $USER\ngroup: $GROUP\n" > /etc/fixuid/config.yml
 
 # Set the working directory
 WORKDIR /root
+
+USER root
+
+RUN apt-get update \
+    && apt-get install -y lsb-release python3-distutils libstdc++-10-dev \
+    && wget https://bootstrap.pypa.io/get-pip.py \
+    && python3 get-pip.py
+
+
+RUN mkdir /work
+WORKDIR /work
