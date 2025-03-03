@@ -11,6 +11,7 @@ ENV CMAKE_VERSION=3.28.6
 ENV NINJA_VERSION=v1.12.1
 #Max supported version of gdb by CLion
 ENV GDB_VERSION=14.1
+ENV CCACHE_VERSION=4.10.2
 
 RUN addgroup --gid 1000 docker && \
     adduser --uid 1000 --ingroup docker --home /home/docker --shell /bin/sh --disabled-password --gecos "" docker
@@ -51,6 +52,10 @@ RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/do
 RUN wget https://apt.llvm.org/llvm.sh \
     && chmod +x llvm.sh \
     && ./llvm.sh ${CLANG_VERSION}
+
+RUN wget --no-check-certificate https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz \
+    && tar -xvf ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz -C /usr/local/bin --strip-components=1 \
+    && update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100 \
 
 #gdb
 RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-19 100 \
