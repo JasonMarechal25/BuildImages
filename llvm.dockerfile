@@ -1,11 +1,11 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Set environment variables to avoid tzdata interactive dialog
 ENV DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-c"]
 
-ENV CLANG_VERSION=19
+ENV CLANG_VERSION=20
 #Max supported version of CMake by CLion
 ENV CMAKE_VERSION=3.28.6
 ENV NINJA_VERSION=v1.12.1
@@ -58,12 +58,12 @@ RUN wget --no-check-certificate https://github.com/ccache/ccache/releases/downlo
     && update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100 \
 
 #gdb
-RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-19 100 \
-    && update-alternatives --install /usr/local/bin/clang clang /usr/bin/clang-19 100 \
-    && update-alternatives --install /usr/local/bin/cpp ccp /usr/bin/clang++-19 100 \
-    && update-alternatives --install /usr/local/bin/c++ c++ /usr/bin/clang++-19 100 \
-    && update-alternatives --install /usr/local/bin/clang++ clang++ /usr/bin/clang++-19 100 \
-    && update-alternatives --install /usr/local/bin/ld ld /usr/bin/ld.lld-19 100 \
+RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-$CLANG_VERSION 100 \
+    && update-alternatives --install /usr/local/bin/clang clang /usr/bin/clang-$CLANG_VERSION 100 \
+    && update-alternatives --install /usr/local/bin/cpp ccp /usr/bin/clang++-$CLANG_VERSION 100 \
+    && update-alternatives --install /usr/local/bin/c++ c++ /usr/bin/clang++-$CLANG_VERSION 100 \
+    && update-alternatives --install /usr/local/bin/clang++ clang++ /usr/bin/clang++-$CLANG_VERSION 100 \
+    && update-alternatives --install /usr/local/bin/ld ld /usr/bin/ld.lld-$CLANG_VERSION 100 \
     && rm /etc/ld.so.cache \
     && ldconfig -C /etc/ld.so.cache \
     && update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 \

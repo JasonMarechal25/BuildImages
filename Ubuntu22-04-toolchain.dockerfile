@@ -1,16 +1,17 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Set environment variables to avoid tzdata interactive dialog
 ENV DEBIAN_FRONTEND=noninteractive
 
 SHELL ["/bin/bash", "-c"]
 
-ENV CLANG_VERSION=19
+ENV CLANG_VERSION=20
 #Max supported version of CMake by CLion
-ENV CMAKE_VERSION=3.28.6
+ENV CMAKE_VERSION=3.31.6
 ENV NINJA_VERSION=v1.12.1
 #Max supported version of gdb by CLion
-ENV GDB_VERSION=14.1
+ENV GDB_VERSION=16.3
+ENV CCACHE_VERSION=4.10.2
 
 RUN addgroup --gid 1000 docker && \
     adduser --uid 1000 --ingroup docker --home /home/docker --shell /bin/sh --disabled-password --gecos "" docker
@@ -18,9 +19,9 @@ RUN addgroup --gid 1000 docker && \
 # Update the system and install necessary packages
 RUN apt update
 RUN apt update --fix-missing
-#install clang and lld-10 to speed up the build over default ld
 #curl and ca-certificates to be able to use vcpkg
 #texinfo required for GDB 14 (not anymore for 16.x I think)
+#Antares : uuid-dev
 RUN apt install -y --no-install-recommends --no-install-suggests \
     build-essential \
     wget \
@@ -35,7 +36,10 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     ca-certificates \
     texinfo \
     lsb-release wget software-properties-common gnupg \
+    uuid-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN wget "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz"
 
 #Cmake
 RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz \
@@ -51,24 +55,29 @@ RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/do
 RUN wget https://apt.llvm.org/llvm.sh \
     && chmod +x llvm.sh \
     && ./llvm.sh ${CLANG_VERSION} \
-    && apt-get install clang-tools-19 clang-format-19 clangd-19 clang-tidy-19 -y
+    && apt-get install clang-tools-${CLANG_VERSION} clang-format-${CLANG_VERSION} clangd-${CLANG_VERSION} clang-tidy-${CLANG_VERSION} -y
+
+RUN wget --no-check-certificate https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz \
+    && tar -xvf ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz -C /usr/local/bin --strip-components=1 \
+    && update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100
 
 #gdb
-RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-19 100 \
-    && update-alternatives --install /usr/local/bin/clang clang /usr/bin/clang-19 100 \
-    && update-alternatives --install /usr/local/bin/cpp ccp /usr/bin/clang++-19 100 \
-    && update-alternatives --install /usr/local/bin/c++ c++ /usr/bin/clang++-19 100 \
-    && update-alternatives --install /usr/local/bin/clang++ clang++ /usr/bin/clang++-19 100 \
-    && update-alternatives --install /usr/local/bin/ld ld /usr/bin/ld.lld-19 100 \
-    && update-alternatives --install /usr/local/bin/clang-format clang-format /usr/bin/clang-format-19 100 \
-    && update-alternatives --install /usr/local/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-19 100 \
+RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/clang clang /usr/bin/clang-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/cpp ccp /usr/bin/clang++-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/c++ c++ /usr/bin/clang++-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/g++ g++ /usr/bin/clang++-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/clang++ clang++ /usr/bin/clang++-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/ld ld /usr/bin/ld.lld-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/clang-format clang-format /usr/bin/clang-format-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-${CLANG_VERSION} 100 \
+    && update-alternatives --install /usr/local/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VERSION} 100 \
     && rm /etc/ld.so.cache \
     && ldconfig -C /etc/ld.so.cache \
     && update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 \
     && update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
 
 RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
-    wget "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz" && \
     tar -xvf gdb-${GDB_VERSION}.tar.gz && \
     pushd gdb-${GDB_VERSION} && \
     mkdir build && \
@@ -104,4 +113,13 @@ RUN apt-get update \
 
 
 RUN mkdir /work
+RUN mkdir /.cache/
+RUN chown -R docker:docker /.cache
+RUN chmod -R 777 /.cache
 WORKDIR /work
+
+#Move out
+#Install numpy
+RUN python3 -m pip install --upgrade pip \
+    && python3 -m pip install numpy \
+    && python3 -m pip install pytest
