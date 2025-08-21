@@ -1,32 +1,59 @@
+# syntax=docker/dockerfile:1
+FROM ubuntu:22.04 AS gdb-builder
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG GDB_VERSION=16.3
+# Dépendances build GDB
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    ca-certificates \
+    python3 \
+    pkg-config \
+    libmpfr-dev libgmp3-dev libmpc-dev \
+    libssl-dev \
+    texinfo \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG GDB_SHA256=""
+RUN set -euo pipefail; \
+    curl -fsSLo gdb.tar.gz "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz"; \
+    if [ -n "${GDB_SHA256}" ]; then echo "${GDB_SHA256}  gdb.tar.gz" | sha256sum -c -; fi; \
+    tar -xf gdb.tar.gz && rm gdb.tar.gz && \
+    cd gdb-${GDB_VERSION} && mkdir build && cd build && \
+    ../configure --prefix=/usr/local --disable-werror && \
+    make -j"$(nproc)" && make install-strip
+
+# Étape finale
 FROM ubuntu:22.04
 
-# Set environment variables to avoid tzdata interactive dialog
+LABEL org.opencontainers.image.title="Ubuntu 22.04 C++ Toolchain" \
+      org.opencontainers.image.description="Toolchain Clang/CMake/Ninja/GDB optimisée" \
+      org.opencontainers.image.vendor="Custom" \
+      org.opencontainers.image.licenses="MIT"
+
+SHELL ["/bin/bash","-o","pipefail","-c"]
+
 ENV DEBIAN_FRONTEND=noninteractive
+ARG CLANG_VERSION=20
+ARG CMAKE_VERSION=3.31.6
+ARG NINJA_VERSION=v1.12.1
+ARG CCACHE_VERSION=4.10.2
+ARG FIXUID_VERSION=0.6.0
+ARG CMAKE_SHA256="" \
+    NINJA_SHA256="" \
+    CCACHE_SHA256="" \
+    FIXUID_SHA256="" \
+    LLVM_SH_SHA256=""
 
-SHELL ["/bin/bash", "-c"]
-
-ENV CLANG_VERSION=20
-#Max supported version of CMake by CLion
-ENV CMAKE_VERSION=3.31.6
-ENV NINJA_VERSION=v1.12.1
-#Max supported version of gdb by CLion
-ENV GDB_VERSION=16.3
-ENV CCACHE_VERSION=4.10.2
-
-RUN addgroup --gid 1000 docker && \
-    adduser --uid 1000 --ingroup docker --home /home/docker --shell /bin/sh --disabled-password --gecos "" docker
-
-# Update the system and install necessary packages
-RUN apt update
-RUN apt update --fix-missing
-#curl and ca-certificates to be able to use vcpkg
-#texinfo required for GDB 14 (not anymore for 16.x I think)
-#Antares : uuid-dev
-RUN apt install -y --no-install-recommends --no-install-suggests \
+# Paquets de base (runtime + build général utilisateur)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     wget \
     git \
     python3 \
+    python3-distutils \
     pkg-config \
     zip \
     curl \
@@ -34,92 +61,87 @@ RUN apt install -y --no-install-recommends --no-install-suggests \
     libssl-dev \
     unzip \
     ca-certificates \
-    texinfo \
-    lsb-release wget software-properties-common gnupg \
+    lsb-release software-properties-common gnupg \
     uuid-dev \
+    xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz"
+# Utilisateur non-root
+RUN addgroup --gid 1000 docker && \
+    adduser --uid 1000 --ingroup docker --home /home/docker --shell /bin/sh --disabled-password --gecos "" docker
 
-#Cmake
-RUN wget --no-check-certificate https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz \
-    && tar xvf cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz -C /usr/local --strip-components=1\
-    && rm cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz
+# Installer CMake binaire + vérif SHA optionnelle
+RUN set -euo pipefail; \
+    curl -fsSLo cmake.tar.gz "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz"; \
+    if [ -n "${CMAKE_SHA256}" ]; then echo "${CMAKE_SHA256}  cmake.tar.gz" | sha256sum -c -; fi; \
+    tar -xzf cmake.tar.gz -C /usr/local --strip-components=1; \
+    rm cmake.tar.gz
 
-#Ninja
-RUN wget --no-check-certificate https://github.com/ninja-build/ninja/releases/download/${NINJA_VERSION}/ninja-linux.zip && \
-    unzip ninja-linux.zip -d /usr/local/bin/ && \
+# Ninja
+RUN set -euo pipefail; \
+    curl -fsSLo ninja-linux.zip "https://github.com/ninja-build/ninja/releases/download/${NINJA_VERSION}/ninja-linux.zip"; \
+    if [ -n "${NINJA_SHA256}" ]; then echo "${NINJA_SHA256}  ninja-linux.zip" | sha256sum -c -; fi; \
+    unzip ninja-linux.zip -d /usr/local/bin/; \
     rm ninja-linux.zip
 
-# Clang
-RUN wget https://apt.llvm.org/llvm.sh \
-    && chmod +x llvm.sh \
-    && ./llvm.sh ${CLANG_VERSION} \
-    && apt-get install clang-tools-${CLANG_VERSION} clang-format-${CLANG_VERSION} clangd-${CLANG_VERSION} clang-tidy-${CLANG_VERSION} -y
+# Clang / LLVM
+RUN set -euo pipefail; \
+    curl -fsSLo llvm.sh https://apt.llvm.org/llvm.sh; \
+    if [ -n "${LLVM_SH_SHA256}" ]; then echo "${LLVM_SH_SHA256}  llvm.sh" | sha256sum -c -; fi; \
+    chmod +x llvm.sh; \
+    ./llvm.sh ${CLANG_VERSION}; \
+    apt-get install -y clang-tools-${CLANG_VERSION} clang-format-${CLANG_VERSION} clangd-${CLANG_VERSION} clang-tidy-${CLANG_VERSION} && \
+    rm -f llvm.sh && rm -rf /var/lib/apt/lists/*
 
-RUN wget --no-check-certificate https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz \
-    && tar -xvf ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz -C /usr/local/bin --strip-components=1 \
-    && update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100
+# ccache
+RUN set -euo pipefail; \
+    curl -fsSLo ccache.tar.xz "https://github.com/ccache/ccache/releases/download/v${CCACHE_VERSION}/ccache-${CCACHE_VERSION}-linux-x86_64.tar.xz"; \
+    if [ -n "${CCACHE_SHA256}" ]; then echo "${CCACHE_SHA256}  ccache.tar.xz" | sha256sum -c -; fi; \
+    tar -xf ccache.tar.xz -C /usr/local/bin --strip-components=1; \
+    rm ccache.tar.xz; \
+    update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100
 
-#gdb
-RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/clang clang /usr/bin/clang-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/cpp ccp /usr/bin/clang++-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/c++ c++ /usr/bin/clang++-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/g++ g++ /usr/bin/clang++-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/clang++ clang++ /usr/bin/clang++-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/ld ld /usr/bin/ld.lld-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/clang-format clang-format /usr/bin/clang-format-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-${CLANG_VERSION} 100 \
-    && update-alternatives --install /usr/local/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VERSION} 100 \
-    && rm /etc/ld.so.cache \
-    && ldconfig -C /etc/ld.so.cache \
-    && update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 \
-    && update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
+# GDB depuis l'étape builder
+COPY --from=gdb-builder /usr/local/ /usr/local/
+RUN update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
 
-RUN CXX=/usr/bin/clang && CC=/usr/bin/clang && \
-    tar -xvf gdb-${GDB_VERSION}.tar.gz && \
-    pushd gdb-${GDB_VERSION} && \
-    mkdir build && \
-    pushd build && \
-    ../configure --prefix=/usr/local && \
-    make -j$(nproc) && \
-    make install-strip && \
-    popd && \
-    popd && \
-    rm gdb-${GDB_VERSION}.tar.gz && \
-    rm -rf gdb-${GDB_VERSION} && \
-    update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100 \
-    && apt remove texinfo -y
+# Alternatives Clang / outils
+RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/local/bin/c++ c++ /usr/bin/clang++-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/local/bin/clang clang /usr/bin/clang-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/local/bin/clang++ clang++ /usr/bin/clang++-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/local/bin/cpp cpp /usr/bin/clang-cpp-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/local/bin/clang-format clang-format /usr/bin/clang-format-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/local/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/local/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 && \
+    update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
 
-#https://github.com/boxboat/fixuid
-RUN USER=docker && \
-    GROUP=docker && \
-    curl -SsL https://github.com/boxboat/fixuid/releases/download/v0.6.0/fixuid-0.6.0-linux-amd64.tar.gz | tar -C /usr/local/bin -xzf - && \
-    chown root:root /usr/local/bin/fixuid && \
-    chmod 4755 /usr/local/bin/fixuid && \
-    mkdir -p /etc/fixuid && \
-    printf "user: $USER\ngroup: $GROUP\n" > /etc/fixuid/config.yml
+# fixuid
+RUN set -euo pipefail; \
+    curl -fsSLo fixuid.tar.gz https://github.com/boxboat/fixuid/releases/download/v${FIXUID_VERSION}/fixuid-${FIXUID_VERSION}-linux-amd64.tar.gz; \
+    if [ -n "${FIXUID_SHA256}" ]; then echo "${FIXUID_SHA256}  fixuid.tar.gz" | sha256sum -c -; fi; \
+    tar -C /usr/local/bin -xzf fixuid.tar.gz; \
+    rm fixuid.tar.gz; \
+    chown root:root /usr/local/bin/fixuid; \
+    chmod 4755 /usr/local/bin/fixuid; \
+    mkdir -p /etc/fixuid; \
+    printf "user: docker\ngroup: docker\n" > /etc/fixuid/config.yml
 
-# Set the working directory
-WORKDIR /root
+# pip
+RUN curl -fsSLo get-pip.py https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py && rm get-pip.py
 
-USER root
+# Python libs de base
+RUN python3 -m pip install --no-cache-dir --upgrade pip && \
+    python3 -m pip install --no-cache-dir numpy pytest
 
-RUN apt-get update \
-    && apt-get install -y lsb-release python3-distutils libstdc++-10-dev \
-    && wget https://bootstrap.pypa.io/get-pip.py \
-    && python3 get-pip.py
-
-
-RUN mkdir /work
-RUN mkdir /.cache/
-RUN chown -R docker:docker /.cache
-RUN chmod -R 777 /.cache
+# Cache & workspace
+RUN mkdir /work /.cache && chown -R docker:docker /.cache && chmod -R 777 /.cache
 WORKDIR /work
 
-#Move out
-#Install numpy
-RUN python3 -m pip install --upgrade pip \
-    && python3 -m pip install numpy \
-    && python3 -m pip install pytest
+USER docker
+
+ENV PATH="/usr/local/bin:$PATH" \
+    CC=clang CXX=clang++
+
+# Image prête
