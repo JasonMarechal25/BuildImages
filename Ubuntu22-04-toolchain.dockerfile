@@ -2,7 +2,9 @@
 FROM ubuntu:22.04 AS gdb-builder
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG GDB_VERSION=16.3
+#15.2 for CLion compatibility
+ARG GDB_VERSION=15.2
+SHELL ["/bin/bash","-o","pipefail","-c"]
 # Dépendances build GDB
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -133,7 +135,8 @@ RUN curl -fsSLo get-pip.py https://bootstrap.pypa.io/get-pip.py && python3 get-p
 
 # Python libs de base
 RUN python3 -m pip install --no-cache-dir --upgrade pip && \
-    python3 -m pip install --no-cache-dir numpy pytest
+    python3 -m pip install --no-cache-dir numpy pytest && \
+    python3 -m pip install --no-cache-dir gcovr
 
 # Cache & workspace
 RUN mkdir /work /.cache && chown -R docker:docker /.cache && chmod -R 777 /.cache
