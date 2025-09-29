@@ -1,5 +1,32 @@
 # DockerImages
 
+Shared GDB builder
+- The GDB build logic has been factorized into a dedicated Dockerfile: gdb-builder-ubuntu22.04.dockerfile.
+- Toolchain images now pull GDB from an external image reference using Docker's COPY --from=image feature.
+
+Build the shared GDB image first:
+
+```
+docker build -f gdb-builder-ubuntu22.04.dockerfile -t gdb-builder:ubuntu22.04-15.2 .
+```
+
+Then build the toolchain images (they default to that tag via ARG GDB_IMAGE):
+
+- Clang toolchain (Ubuntu 22.04):
+```
+docker build -f Ubuntu22-04-clang-toolchain.dockerfile -t clang-toolchain:ubuntu22.04 .
+```
+
+- GCC toolchain (Ubuntu 22.04):
+```
+docker build -f Ubuntu22-04-gcc-toolchain.dockerfile -t gcc-toolchain:ubuntu22.04 .
+```
+
+Override the GDB image if needed:
+```
+docker build -f Ubuntu22-04-clang-toolchain.dockerfile --build-arg GDB_IMAGE=gdb-builder:custom-tag -t clang-toolchain:custom .
+```
+
 
 
 ## Getting started

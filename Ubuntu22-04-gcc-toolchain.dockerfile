@@ -1,33 +1,4 @@
 # syntax=docker/dockerfile:1
-FROM ubuntu:22.04 AS gdb-builder
-
-ARG DEBIAN_FRONTEND=noninteractive
-# 15.2 for CLion compatibility
-ARG GDB_VERSION=15.2
-SHELL ["/bin/bash","-o","pipefail","-c"]
-# Build dependencies for GDB
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    ca-certificates \
-    python3 \
-    pkg-config \
-    libmpfr-dev libgmp3-dev libmpc-dev \
-    libssl-dev \
-    texinfo \
-    xz-utils \
-    && rm -rf /var/lib/apt/lists/*
-
-ARG GDB_SHA256=""
-RUN set -euo pipefail; \
-    curl -fsSLo gdb.tar.gz "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz"; \
-    if [ -n "${GDB_SHA256}" ]; then echo "${GDB_SHA256}  gdb.tar.gz" | sha256sum -c -; fi; \
-    tar -xf gdb.tar.gz && rm gdb.tar.gz && \
-    cd gdb-${GDB_VERSION} && mkdir build && cd build && \
-    ../configure --prefix=/usr/local --disable-werror && \
-    make -j"$(nproc)" && make install-strip
-
-# Final stage
 FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.title="Ubuntu 22.04 C++ Toolchain (GCC)" \
@@ -100,8 +71,9 @@ RUN set -euo pipefail; \
     rm ccache.tar.xz; \
     update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100
 
-# GDB from builder stage
-COPY --from=gdb-builder /usr/local/ /usr/local/
+# GDB from prebuilt image
+ARG GDB_IMAGE="gdb-builder:ubuntu22.04-15.2"
+COPY --from=${GDB_IMAGE} /usr/local/ /usr/local/
 RUN update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
 
 # Alternatives for GCC and tools
