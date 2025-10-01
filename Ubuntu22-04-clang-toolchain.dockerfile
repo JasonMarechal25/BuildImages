@@ -1,4 +1,9 @@
 # syntax=docker/dockerfile:1
+# Stage 0: bring in GDB files from a prebuilt image (use named stage to avoid ARG in COPY --from)
+ARG GDB_IMAGE=gdb-builder:ubuntu22.04-15.2
+FROM ${GDB_IMAGE} AS gdbstage
+
+# Final stage
 FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.title="Ubuntu 22.04 C++ Toolchain" \
@@ -14,11 +19,11 @@ ARG CMAKE_VERSION=3.31.6
 ARG NINJA_VERSION=v1.12.1
 ARG CCACHE_VERSION=4.10.2
 ARG FIXUID_VERSION=0.6.0
-ARG CMAKE_SHA256="" \
-    NINJA_SHA256="" \
-    CCACHE_SHA256="" \
-    FIXUID_SHA256="" \
-    LLVM_SH_SHA256=""
+ARG CMAKE_SHA256=""
+ARG NINJA_SHA256=""
+ARG CCACHE_SHA256=""
+ARG FIXUID_SHA256=""
+ARG LLVM_SH_SHA256=""
 
 # Paquets de base (runtime + build général utilisateur)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -75,8 +80,7 @@ RUN set -euo pipefail; \
     update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100
 
 # GDB depuis une image préconstruite
-ARG GDB_IMAGE="gdb-builder:ubuntu22.04-15.2"
-COPY --from=${GDB_IMAGE} /usr/local/ /usr/local/
+COPY --from=gdbstage /usr/local/ /usr/local/
 RUN update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
 
 # Alternatives Clang / outils

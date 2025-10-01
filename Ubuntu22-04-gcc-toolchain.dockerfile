@@ -1,4 +1,9 @@
 # syntax=docker/dockerfile:1
+# Stage 0: bring in GDB files from a prebuilt image (use named stage to avoid ARG in COPY --from)
+ARG GDB_IMAGE=gdb-builder:ubuntu22.04
+FROM ${GDB_IMAGE} AS gdbstage
+
+# Final stage
 FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.title="Ubuntu 22.04 C++ Toolchain (GCC)" \
@@ -9,7 +14,7 @@ LABEL org.opencontainers.image.title="Ubuntu 22.04 C++ Toolchain (GCC)" \
 SHELL ["/bin/bash","-o","pipefail","-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive
-ARG GCC_VERSION=11
+ARG GCC_VERSION=14.2.0
 ARG CMAKE_VERSION=3.31.6
 ARG NINJA_VERSION=v1.12.1
 ARG CCACHE_VERSION=4.10.2
@@ -29,13 +34,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     zip \
     curl \
-    libmpfr-dev libgmp3-dev libmpc-dev \
+    libmpfr-dev libgmp3-dev libmpc-dev libisl-dev zlib1g-dev \
     libssl-dev \
     unzip \
     ca-certificates \
     lsb-release software-properties-common gnupg \
     uuid-dev \
-    xz-utils \
+    xz-utils flex bison \
     && rm -rf /var/lib/apt/lists/*
 
 # Non-root user
@@ -56,12 +61,31 @@ RUN set -euo pipefail; \
     unzip ninja-linux.zip -d /usr/local/bin/; \
     rm ninja-linux.zip
 
-# GCC via Toolchain PPA (for newer versions on 22.04)
+# Build GCC from source (apt repository not available)
 RUN set -euo pipefail; \
-    add-apt-repository -y ppa:ubuntu-toolchain-r/test; \
-    apt-get update; \
-    apt-get install -y gcc-${GCC_VERSION} g++-${GCC_VERSION} cpp-${GCC_VERSION}; \
-    rm -rf /var/lib/apt/lists/*
+    curl -fsSLo gcc.tar.xz "https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz"; \
+    tar -xf gcc.tar.xz; \
+    rm gcc.tar.xz; \
+    pushd gcc-${GCC_VERSION}; \
+    ./contrib/download_prerequisites || true; \
+    mkdir build && cd build; \
+    ../configure -v \
+      --build=x86_64-linux-gnu \
+      --host=x86_64-linux-gnu \
+      --target=x86_64-linux-gnu \
+      --prefix=/usr/local \
+      --enable-checking=release \
+      --enable-languages=c,c++ \
+      --enable-linker-build-id \
+      --disable-multilib \
+      --disable-bootstrap \
+      --disable-nls \
+      --disable-werror; \
+    make -j"$(nproc)"; \
+    make install-strip; \
+    popd; \
+    rm -rf gcc-${GCC_VERSION}; \
+    ldconfig
 
 # ccache
 RUN set -euo pipefail; \
@@ -72,18 +96,36 @@ RUN set -euo pipefail; \
     update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100
 
 # GDB from prebuilt image
-ARG GDB_IMAGE="gdb-builder:ubuntu22.04-15.2"
-COPY --from=${GDB_IMAGE} /usr/local/ /usr/local/
+COPY --from=gdbstage /usr/local/ /usr/local/
 RUN update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
 
 # Alternatives for GCC and tools
-RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/gcc-${GCC_VERSION} 100 && \
-    update-alternatives --install /usr/local/bin/c++ c++ /usr/bin/g++-${GCC_VERSION} 100 && \
-    update-alternatives --install /usr/local/bin/gcc gcc /usr/bin/gcc-${GCC_VERSION} 100 && \
-    update-alternatives --install /usr/local/bin/g++ g++ /usr/bin/g++-${GCC_VERSION} 100 && \
-    update-alternatives --install /usr/local/bin/cpp cpp /usr/bin/cpp-${GCC_VERSION} 100 && \
+RUN GCC_MAJOR_VERSION=${GCC_VERSION%%.*} && \
+    ls -la /usr/local/bin/ && \
+    /usr/local/bin/gcc --version && \
+    update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 100 && \
+    update-alternatives --install /usr/bin/c++ c++ /usr/local/bin/g++ 100 && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/local/bin/gcc 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/local/bin/g++ 100 && \
+    update-alternatives --install /usr/bin/cpp cpp /usr/local/bin/cpp 100 && \
     update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 && \
     update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
+
+RUN /usr/local/bin/cc --version && \
+    /usr/bin/gcc --version && \
+    cc --version && \
+    /usr/local/bin/c++ --version && \
+    /usr/bin/g++ --version && \
+    c++ --version && \
+    /usr/local/bin/gcc --version && \
+    /usr/bin/gcc --version && \
+    gcc --version && \
+    /usr/local/bin/g++ --version && \
+    /usr/bin/g++ --version && \
+    g++ --version && \
+    /usr/local/bin/cpp --version && \
+    /usr/bin/cpp --version && \
+    cpp --version
 
 # fixuid
 RUN set -euo pipefail; \
