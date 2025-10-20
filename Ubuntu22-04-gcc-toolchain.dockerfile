@@ -14,7 +14,7 @@ LABEL org.opencontainers.image.title="Ubuntu 22.04 C++ Toolchain (GCC)" \
 SHELL ["/bin/bash","-o","pipefail","-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive
-ARG GCC_VERSION=14.2.0
+ARG GCC_VERSION=15.2.0
 ARG CMAKE_VERSION=3.31.6
 ARG NINJA_VERSION=v1.12.1
 ARG CCACHE_VERSION=4.10.2
@@ -111,21 +111,14 @@ RUN GCC_MAJOR_VERSION=${GCC_VERSION%%.*} && \
     update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 && \
     update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
 
-RUN /usr/local/bin/cc --version && \
-    /usr/bin/gcc --version && \
-    cc --version && \
-    /usr/local/bin/c++ --version && \
-    /usr/bin/g++ --version && \
+RUN cc --version && \
     c++ --version && \
-    /usr/local/bin/gcc --version && \
-    /usr/bin/gcc --version && \
     gcc --version && \
-    /usr/local/bin/g++ --version && \
-    /usr/bin/g++ --version && \
     g++ --version && \
-    /usr/local/bin/cpp --version && \
-    /usr/bin/cpp --version && \
-    cpp --version
+    cpp --version && \
+    /usr/local/bin/gcc --version && \
+    /usr/local/bin/g++ --version && \
+    /usr/local/bin/cpp --version
 
 # fixuid
 RUN set -euo pipefail; \

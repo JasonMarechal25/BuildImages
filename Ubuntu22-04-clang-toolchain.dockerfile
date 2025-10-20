@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Stage 0: bring in GDB files from a prebuilt image (use named stage to avoid ARG in COPY --from)
-ARG GDB_IMAGE=gdb-builder:ubuntu22.04-15.2
+ARG GDB_IMAGE=gdb-builder:ubuntu22.04
 FROM ${GDB_IMAGE} AS gdbstage
 
 # Final stage
@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     lsb-release software-properties-common gnupg \
     uuid-dev \
     xz-utils \
+    flex \
     && rm -rf /var/lib/apt/lists/*
 
 # Utilisateur non-root
