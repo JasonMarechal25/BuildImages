@@ -43,6 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     uuid-dev \
     xz-utils \
     flex \
+    libwxgtk3.0-gtk3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Utilisateur non-root
