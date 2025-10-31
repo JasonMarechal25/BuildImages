@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 # 15.2 for CLion compatibility
-ARG GDB_VERSION=15.2
+ARG GDB_VERSION=16.1
 ARG GDB_SHA256=""
 
 SHELL ["/bin/bash","-o","pipefail","-c"]
@@ -27,7 +27,7 @@ RUN set -euo pipefail; \
     if [ -n "${GDB_SHA256}" ]; then echo "${GDB_SHA256}  gdb.tar.gz" | sha256sum -c -; fi; \
     tar -xf gdb.tar.gz && rm gdb.tar.gz && \
     cd gdb-${GDB_VERSION} && mkdir build && cd build && \
-    ../configure --prefix=/usr/local --disable-werror && \
+    ../configure --prefix=/usr/local --disable-werror --with-python && \
     make -j"$(nproc)" && make install-strip
 
 # This image provides /usr/local with GDB installed.
