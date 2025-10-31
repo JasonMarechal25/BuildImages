@@ -1,7 +1,5 @@
 # syntax=docker/dockerfile:1
 # Stage 0: bring in GDB files from a prebuilt image (use named stage to avoid ARG in COPY --from)
-ARG GDB_IMAGE=gdb-builder:ubuntu22.04
-FROM ${GDB_IMAGE} AS gdbstage
 
 # Final stage
 FROM ubuntu:22.04
@@ -24,6 +22,8 @@ ARG NINJA_SHA256=""
 ARG CCACHE_SHA256=""
 ARG FIXUID_SHA256=""
 ARG LLVM_SH_SHA256=""
+ARG GDB_VERSION=15.2
+ARG GDB_SHA256=""
 
 # Paquets de base (runtime + build général utilisateur)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     python3 \
     python3-distutils \
+    python3-dev \
     pkg-config \
     zip \
     curl \
@@ -44,6 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xz-utils \
     flex \
     libwxgtk3.0-gtk3-dev \
+    texinfo \
     && rm -rf /var/lib/apt/lists/*
 
 # Utilisateur non-root
@@ -82,7 +84,18 @@ RUN set -euo pipefail; \
     update-alternatives --install /usr/bin/ccache ccache /usr/local/bin/ccache 100
 
 # GDB depuis une image préconstruite
-COPY --from=gdbstage /usr/local/ /usr/local/
+
+# Build and install GDB
+RUN set -euo pipefail; \
+    curl -fsSLo gdb.tar.gz "http://ftp.gnu.org/gnu/gdb/gdb-${GDB_VERSION}.tar.gz"; \
+    if [ -n "${GDB_SHA256}" ]; then echo "${GDB_SHA256}  gdb.tar.gz" | sha256sum -c -; fi; \
+    tar -xf gdb.tar.gz && rm gdb.tar.gz
+RUN which python3
+RUN \
+    cd gdb-${GDB_VERSION} && mkdir build && cd build && \
+    ../configure --prefix=/usr/local --disable-werror --with-python=/usr/bin/python3
+RUN \
+    cd gdb-${GDB_VERSION}/build && make -j"$(nproc)" && make install-strip
 RUN update-alternatives --install /usr/bin/gdb gdb /usr/local/bin/gdb 100
 
 # Alternatives Clang / outils
