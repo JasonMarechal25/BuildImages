@@ -130,7 +130,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
     python3 -m pip install --no-cache-dir gcovr
 
 # Cache & workspace
-RUN mkdir /work /.cache && chown -R docker:docker /.cache && chmod -R 777 /.cache
+RUN mkdir /work /.cache && chown -R docker:docker /.cache && chmod -R 777 /.cache && chown -R docker:docker /work && chmod -R 777 /work
 WORKDIR /work
 
 USER docker
