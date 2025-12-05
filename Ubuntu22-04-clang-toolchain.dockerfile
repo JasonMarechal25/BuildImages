@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     flex \
     libwxgtk3.0-gtk3-dev \
     texinfo \
+    autoconf automake libtool libtool-bin \
     && rm -rf /var/lib/apt/lists/*
 
 # Utilisateur non-root
