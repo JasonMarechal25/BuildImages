@@ -108,7 +108,10 @@ RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-${CLANG_VE
     update-alternatives --install /usr/local/bin/clang-format clang-format /usr/bin/clang-format-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/local/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/local/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 && \
+    update-alternatives --install /usr/bin/ctest ctest /usr/local/bin/ctest 100 && \
     update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
 
 # fixuid
