@@ -131,11 +131,15 @@ RUN curl -fsSLo get-pip.py https://bootstrap.pypa.io/get-pip.py && python3 get-p
 # Python libs de base
 RUN python3 -m pip install --no-cache-dir --upgrade pip && \
     python3 -m pip install --no-cache-dir numpy pytest && \
-    python3 -m pip install --no-cache-dir gcovr
+    python3 -m pip install --no-cache-dir gcovr && \
+    python3 -m pip install --no-cache-dir xpress==9.6.1
 
 # Cache & workspace
 RUN mkdir /work /.cache && chown -R docker:docker /.cache && chmod -R 777 /.cache && chown -R docker:docker /work && chmod -R 777 /work
 WORKDIR /work
+
+ENV XPRESSDIR=/usr/local/lib/python3.10/dist-packages/xpresslibs
+RUN ln -s $XPRESSDIR/lib/libxprs.so.45 $XPRESSDIR/lib/libxprs.so
 
 USER docker
 
