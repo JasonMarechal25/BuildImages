@@ -47,6 +47,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libwxgtk3.0-gtk3-dev \
     texinfo \
     autoconf automake libtool libtool-bin \
+    libc++-dev libc++abi-dev \
+    libstdc++-12-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Utilisateur non-root
@@ -73,7 +75,7 @@ RUN set -euo pipefail; \
     if [ -n "${LLVM_SH_SHA256}" ]; then echo "${LLVM_SH_SHA256}  llvm.sh" | sha256sum -c -; fi; \
     chmod +x llvm.sh; \
     ./llvm.sh ${CLANG_VERSION}; \
-    apt-get install -y clang-tools-${CLANG_VERSION} clang-format-${CLANG_VERSION} clangd-${CLANG_VERSION} clang-tidy-${CLANG_VERSION} && \
+    apt-get install -y clang-tools-${CLANG_VERSION} clang-format-${CLANG_VERSION} clangd-${CLANG_VERSION} clang-tidy-${CLANG_VERSION} lld-${CLANG_VERSION} && \
     rm -f llvm.sh && rm -rf /var/lib/apt/lists/*
 
 # ccache
@@ -107,6 +109,8 @@ RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-${CLANG_VE
     update-alternatives --install /usr/local/bin/cpp cpp /usr/bin/clang-cpp-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/local/bin/clang-format clang-format /usr/bin/clang-format-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/local/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/local/bin/lld lld /usr/bin/lld-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/bin/ld ld /usr/bin/lld-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/local/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-${CLANG_VERSION} 100 && \
@@ -132,7 +136,8 @@ RUN curl -fsSLo get-pip.py https://bootstrap.pypa.io/get-pip.py && python3 get-p
 RUN python3 -m pip install --no-cache-dir --upgrade pip && \
     python3 -m pip install --no-cache-dir numpy pytest && \
     python3 -m pip install --no-cache-dir gcovr && \
-    python3 -m pip install --no-cache-dir xpress==9.6.1
+    python3 -m pip install --no-cache-dir xpress==9.6.1 && \
+    python3 -m pip install --no-cache-dir psutil
 
 # Cache & workspace
 RUN mkdir /work /.cache && chown -R docker:docker /.cache && chmod -R 777 /.cache && chown -R docker:docker /work && chmod -R 777 /work
