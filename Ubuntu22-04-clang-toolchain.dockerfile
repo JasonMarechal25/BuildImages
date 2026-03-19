@@ -78,7 +78,7 @@ RUN set -euo pipefail; \
     if [ -n "${LLVM_SH_SHA256}" ]; then echo "${LLVM_SH_SHA256}  llvm.sh" | sha256sum -c -; fi; \
     chmod +x llvm.sh; \
     ./llvm.sh ${CLANG_VERSION}; \
-    apt-get install -y clang-tools-${CLANG_VERSION} clang-format-${CLANG_VERSION} clangd-${CLANG_VERSION} clang-tidy-${CLANG_VERSION} lld-${CLANG_VERSION} && \
+    apt-get install -y clang-tools-${CLANG_VERSION} clang-format-${CLANG_VERSION} clangd-${CLANG_VERSION} clang-tidy-${CLANG_VERSION} lld-${CLANG_VERSION}  && \
     rm -f llvm.sh && rm -rf /var/lib/apt/lists/*
 
 # ccache
@@ -124,7 +124,24 @@ RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-${CLANG_VE
     update-alternatives --install /usr/bin/x86_64-linux-gnu-gcc x86_64-linux-gnu-gcc /usr/bin/clang-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/bin/x86_64-linux-gnu-g++ x86_64-linux-gnu-g++ /usr/bin/clang++-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/bin/x64-linux-gnu-gcc x64-linux-gnu-gcc /usr/bin/clang-${CLANG_VERSION} 100 && \
-    update-alternatives --install /usr/bin/x64-linux-gnu-g++ x64-linux-gnu-g++ /usr/bin/clang++-${CLANG_VERSION} 100
+    update-alternatives --install /usr/bin/x64-linux-gnu-g++ x64-linux-gnu-g++ /usr/bin/clang++-${CLANG_VERSION} 100 && \
+    # Provide multiarch ar/ranlib names: prefer llvm-ar-${CLANG_VERSION} / llvm-ranlib-${CLANG_VERSION}, fall back to llvm-ar / ranlib
+    if [ -x /usr/bin/llvm-ar-${CLANG_VERSION} ]; then \
+        update-alternatives --install /usr/bin/x86_64-linux-gnu-ar x86_64-linux-gnu-ar /usr/bin/llvm-ar-${CLANG_VERSION} 100 && \
+        update-alternatives --install /usr/bin/x86_64-linux-gnu-ranlib x86_64-linux-gnu-ranlib /usr/bin/llvm-ranlib-${CLANG_VERSION} 100 && \
+        update-alternatives --install /usr/bin/x64-linux-gnu-ar x64-linux-gnu-ar /usr/bin/llvm-ar-${CLANG_VERSION} 100 && \
+        update-alternatives --install /usr/bin/x64-linux-gnu-ranlib x64-linux-gnu-ranlib /usr/bin/llvm-ranlib-${CLANG_VERSION} 100; \
+    elif [ -x /usr/bin/llvm-ar ]; then \
+        update-alternatives --install /usr/bin/x86_64-linux-gnu-ar x86_64-linux-gnu-ar /usr/bin/llvm-ar 100 && \
+        update-alternatives --install /usr/bin/x86_64-linux-gnu-ranlib x86_64-linux-gnu-ranlib /usr/bin/llvm-ranlib 100 && \
+        update-alternatives --install /usr/bin/x64-linux-gnu-ar x64-linux-gnu-ar /usr/bin/llvm-ar 100 && \
+        update-alternatives --install /usr/bin/x64-linux-gnu-ranlib x64-linux-gnu-ranlib /usr/bin/llvm-ranlib 100; \
+    else \
+        update-alternatives --install /usr/bin/x86_64-linux-gnu-ar x86_64-linux-gnu-ar /usr/bin/ar 50 && \
+        update-alternatives --install /usr/bin/x86_64-linux-gnu-ranlib x86_64-linux-gnu-ranlib /usr/bin/ranlib 50 && \
+        update-alternatives --install /usr/bin/x64-linux-gnu-ar x64-linux-gnu-ar /usr/bin/ar 50 && \
+        update-alternatives --install /usr/bin/x64-linux-gnu-ranlib x64-linux-gnu-ranlib /usr/bin/ranlib 50; \
+    fi
 
 # fixuid
 RUN set -euo pipefail; \
