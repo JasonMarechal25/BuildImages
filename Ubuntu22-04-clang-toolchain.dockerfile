@@ -27,6 +27,9 @@ ARG GDB_SHA256=""
 
 # Paquets de base (runtime + build général utilisateur)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    lsb-release software-properties-common gnupg gpg-agent && \
+    add-apt-repository ppa:ubuntu-toolchain-r/test -y && apt-get install -y --no-install-recommends \
     build-essential \
     wget \
     git \
@@ -39,8 +42,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmpfr-dev libgmp3-dev libmpc-dev \
     libssl-dev \
     unzip \
-    ca-certificates \
-    lsb-release software-properties-common gnupg \
     uuid-dev \
     xz-utils \
     flex \
@@ -48,7 +49,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texinfo \
     autoconf automake libtool libtool-bin \
     libc++-dev libc++abi-dev \
-    libstdc++-12-dev \
+    libstdc++-13-dev \
+    gfortran \
+    bison \
     && rm -rf /var/lib/apt/lists/*
 
 # Utilisateur non-root
