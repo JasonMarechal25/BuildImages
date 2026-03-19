@@ -119,7 +119,12 @@ RUN update-alternatives --install /usr/local/bin/cc cc /usr/bin/clang-${CLANG_VE
     update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-${CLANG_VERSION} 100 && \
     update-alternatives --install /usr/bin/cmake cmake /usr/local/bin/cmake 100 && \
     update-alternatives --install /usr/bin/ctest ctest /usr/local/bin/ctest 100 && \
-    update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100
+    update-alternatives --install /usr/bin/ninja ninja /usr/local/bin/ninja 100 && \
+    # Provide common multiarch gcc/g++ names to point to clang/clang++ so build systems expecting these names will use clang
+    update-alternatives --install /usr/bin/x86_64-linux-gnu-gcc x86_64-linux-gnu-gcc /usr/bin/clang-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/bin/x86_64-linux-gnu-g++ x86_64-linux-gnu-g++ /usr/bin/clang++-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/bin/x64-linux-gnu-gcc x64-linux-gnu-gcc /usr/bin/clang-${CLANG_VERSION} 100 && \
+    update-alternatives --install /usr/bin/x64-linux-gnu-g++ x64-linux-gnu-g++ /usr/bin/clang++-${CLANG_VERSION} 100
 
 # fixuid
 RUN set -euo pipefail; \
